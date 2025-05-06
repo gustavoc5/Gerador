@@ -1,0 +1,32 @@
+def geraGrausPwl(n, soma_desejada, gamma=2.5, kMin=1, kMax=None):
+    if kMax is None:
+        kMax = n - 1
+    
+    graus = []
+    while len(graus) < n:
+        k = np.random.zipf(gamma)
+        if kMin <= k <= kMax:
+            graus.append(k)
+
+    soma_atual = sum(graus)
+    fator = soma_desejada / soma_atual
+    print(f"Soma atual: {soma_atual}")
+    print(f"Fator de normalização: {fator}")
+
+    # Escalona os graus
+    graus_ajustados = [max(kMin, min(int(round(g * fator)), kMax)) for g in graus]
+
+    # Ajuste fino
+    atual = sum(graus_ajustados)
+    diferenca = soma_desejada - atual
+    while diferenca != 0:
+        i = random.randint(0, len(graus_ajustados) - 1)
+        if diferenca > 0 and graus_ajustados[i] < kMax:
+            graus_ajustados[i] += 1
+            diferenca -= 1
+        elif diferenca < 0 and graus_ajustados[i] > kMin:
+            graus_ajustados[i] -= 1
+            diferenca += 1
+
+    print(f"Soma desejada ≈ {soma_desejada}, soma obtida = {sum(graus_ajustados)}, diferença = {soma_desejada - sum(graus_ajustados)}")
+    return graus_ajustados
