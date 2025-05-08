@@ -2,3 +2,4 @@ numpy>=1.21.0
 python-igraph>=0.10.0
 matplotlib>=3.5.0
 powerlaw>=1.5
+pytest
