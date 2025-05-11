@@ -12,22 +12,11 @@ from pwl import geraGrafoPwl, tipoGrafo
 def calcula_metricas(G, graus, gamma, tipo, tipo_nome, seed, numV, tempo_geracao):
     dirigido = G.is_directed()
 
+    # Fit Power Law
     g_filtrados = [g for g in graus if g >= 1]
     fit = plw.Fit(g_filtrados, xmin=2, discrete=True)
     ks_stat = fit.power_law.KS()
     alpha = fit.power_law.alpha
-
-    if dirigido:
-        indegree_vals = [d for n, d in G.in_degree()]
-        outdegree_vals = [d for n, d in G.out_degree()]
-        avg_indegree = np.mean(indegree_vals)
-        max_indegree = np.max(indegree_vals)
-        avg_outdegree = np.mean(outdegree_vals)
-        max_outdegree = np.max(outdegree_vals)
-    else:
-        degrees = [d for n, d in G.degree()]
-        avg_indegree = avg_outdegree = np.mean(degrees)
-        max_indegree = max_outdegree = np.max(degrees)
 
     G_und = G.to_undirected() if dirigido else G
 
@@ -47,7 +36,7 @@ def calcula_metricas(G, graus, gamma, tipo, tipo_nome, seed, numV, tempo_geracao
     avg_pr = np.mean(list(pr_cent.values()))
     max_pr = np.max(list(pr_cent.values()))
 
-    # Hop plot (amostragem de pares aleatórios)
+    # Hop plot (amostragem aleatória)
     try:
         nodes = list(G_und.nodes())
         distancias = []
@@ -67,31 +56,27 @@ def calcula_metricas(G, graus, gamma, tipo, tipo_nome, seed, numV, tempo_geracao
     tipo_ok = (tipo_detectado == tipo)
 
     return {
-    'tipo': tipo,
-    'descricao': tipo_nome,
-    'seed': seed,
-    'gamma': round(gamma, 4),
-    'powerlaw_ok': ks_stat < 0.1,
-    'num_vertices': numV,
-    'num_arestas': G.number_of_edges(),
-    'grau_medio': round(np.mean(graus), 4),
-    'grau_max': round(max(graus), 4),
-    'ks_stat': round(ks_stat, 4),
-    'alpha_powerlaw': round(alpha, 4),
-    'avg_indegree': round(avg_indegree, 4),
-    'max_indegree': round(max_indegree, 4),
-    'avg_outdegree': round(avg_outdegree, 4),
-    'max_outdegree': round(max_outdegree, 4),
-    'n_communities_lp': n_lp,
-    'avg_degree_centrality': round(avg_deg, 4),
-    'max_degree_centrality': round(max_deg, 4),
-    'avg_pagerank': round(avg_pr, 4),
-    'max_pagerank': round(max_pr, 4),
-    'media_hop': round(media_hop, 4) if media_hop != -1 else -1,
-    'diametro_hop': round(diametro_hop, 4) if diametro_hop != -1 else -1,
-    'tipo_detectado': tipo_detectado,
-    'tipo_correto': tipo_ok,
-    'tempo_geracao_s': round(tempo_geracao, 4)
+        'tipo': tipo,
+        'descricao': tipo_nome,
+        'seed': seed,
+        'gamma': round(gamma, 4),
+        'powerlaw_ok': ks_stat < 0.1,
+        'num_vertices': numV,
+        'num_arestas': G.number_of_edges(),
+        'grau_medio': round(2 * G.number_of_edges() / G.number_of_nodes(), 4),
+        'grau_max': round(max(graus), 4),
+        'ks_stat': round(ks_stat, 4),
+        'alpha_powerlaw': round(alpha, 4),
+        'n_communities_lp': n_lp,
+        'avg_degree_centrality': round(avg_deg, 4),
+        'max_degree_centrality': round(max_deg, 4),
+        'avg_pagerank': round(avg_pr, 4),
+        'max_pagerank': round(max_pr, 4),
+        'media_hop': round(media_hop, 4) if media_hop != -1 else -1,
+        'diametro_hop': round(diametro_hop, 4) if diametro_hop != -1 else -1,
+        'tipo_detectado': tipo_detectado,
+        'tipo_correto': tipo_ok,
+        'tempo_geracao_s': round(tempo_geracao, 4)
     }
 
 
@@ -113,11 +98,15 @@ def executa_testes_pwl(n_execucoes=3, vertices_lista=[1000, 5000]):
                 gamma = round(random.uniform(2.0, 3.0), 2)
                 seed = random.randint(0, 10000)
                 dirigido = tipo in [1, 21, 31]
+                desequilibrado = dirigido  # ativa desequilíbrio apenas se for dirigido
+
                 print(f"🔄 V={numV}, Tipo={tipo} ({tipos[tipo]}), Seed={seed}, γ={gamma}")
                 start_time = time.time()
-                arestas, G, graus = geraGrafoPwl(numV, gamma, dirigido, tipo, seed)
+                arestas, G, graus = geraGrafoPwl(
+                    numV, gamma, dirigido, tipo, seed, desequilibrado=desequilibrado
+                )
                 tempo_geracao = time.time() - start_time
-                arestas, G, graus = geraGrafoPwl(numV, gamma, dirigido, tipo, seed)
+
                 dados = calcula_metricas(G, graus, gamma, tipo, tipos[tipo], seed, numV, tempo_geracao)
                 resultados.append(dados)
 

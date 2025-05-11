@@ -78,11 +78,14 @@ def main():
         seed = int(seed) if seed else random.randint(0, 1000)
         n = input("Número de datasets: ").strip()
         n = int(n) if n else 1
-        fator = input("0-Aleatório 1-Parcial 2-Balanceado: ").strip()
-        fator = int(fator) if fator else random.randint(0, 2)
+        if numComp > 1:
+            fator = input("0-Aleatório 1-Parcial 2-Balanceado: ").strip()
+            fator = int(fator) if fator else random.randint(0, 2)
+        else:
+            fator = 0
 
         datasets = geraDataset(tipo, numV, numA, seed, n, numComp, fator)
-
+        
         for i, dataset in enumerate(datasets):
             nomeArq = f"{tipos[tipo]}-{geracao[fator][0]}-{numV}-{numA}-{seed}-{i+1}-{numComp}"
             arq = f"../plots/{nomeArq}.txt"
