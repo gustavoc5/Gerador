@@ -12,10 +12,10 @@ def main():
     dirigido = tipo in [1, 21, 31]
 
     numV = int(input("Número de Vértices: "))
+    
+    seed = input("Semente (Opcional): ").strip()
+    seed = int(seed) if seed else random.randint(0, 1000)
     gamma = float(input("Expoente (gamma) da distribuição (padrão aleatório entre 2.00 e 3.00): ") or round(random.uniform(2, 3), 2))
-    seed = input("Semente (opcional): ")
-    seed = int(seed) if seed.strip() != "" else None
-
     arestas, G, graus = geraGrafoPwl(numV, gamma, dirigido, tipo, seed)
 
     print("Número de arestas no grafo final:", G.number_of_edges())

@@ -122,8 +122,6 @@ def geraGrafoPwl(numV, gamma=2.5, dirigido=False, tipo=0, seed=None, desequilibr
     return arestas, G, graus_resultado
 
 
-
-
 def tipoGrafo(G):
     dirigido = G.is_directed()
     multigrafo = G.is_multigraph()

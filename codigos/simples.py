@@ -57,7 +57,7 @@ def verGrafo(matriz, nomeArq):
         edge_arrow_size=0.8,
         vertex_label_size=14,
         edge_label=g.es["label"],
-        target=f"plots/{nomeArq}.png",
+        target=f"{nomeArq}.png",
     )
 
 
@@ -649,38 +649,36 @@ if __name__ == "__main__":
         # 4) intervalo básico de conectividade
         minA, maxA = verificaAresta(tipo, numV, numComp)
 
-        # 5) máximo de posições *distintas* de arestas
+        # 5) máximo de posições distintas de arestas
         if tipo == 0 or tipo == 20:
             g_max = numV * (numV - 1) / 2
         elif tipo == 1 or tipo == 21:
             g_max = numV * (numV - 1)
         elif tipo == 30:
-            g_max = numV * (numV - 1) / 2 + numV  # inclui laços
+            g_max = numV * (numV - 1) / 2 + numV
         elif tipo == 31:
-            g_max = numV * (numV - 1) + numV  # dirigido + laços
+            g_max = numV * (numV - 1) + numV
 
-        # 6) ajusta lowA/highA conforme densPref
-        if densPref == 1:  # grafo esparso
-            lowA = minA
-            highA = int(0.2 * g_max)
-        elif densPref == 2:  # grafo denso
-            lowA = int(0.8 * g_max)
-            highA = int(g_max)
+        # 6) restrição adicional por densidade
+        if densPref == 1:  # esparso
+            lowA = max(minA, int(0.05 * g_max))  # esparsidade mínima viável
+            highA = max(minA, int(0.2 * g_max))
+        elif densPref == 2:  # denso
+            lowA = max(minA, int(0.8 * g_max))
+            highA = min(maxA, int(g_max))
         else:  # sem preferência
             lowA = minA
-            highA = None if math.isinf(maxA) else int(maxA)
+            highA = int(maxA) if not math.isinf(maxA) else int(g_max)
 
-        # 7) prompt final pro usuário
-        if highA is None:
-            print(f"\nO número de arestas deve ser ≥ {lowA}.")
-        else:
-            print(f"\nO número de arestas deve estar entre {lowA} e {highA}.")
+        # 7) prompt ao usuário
+        if highA <= lowA:
+            raise ValueError(f"Não há intervalo viável de arestas entre {lowA} e {highA}. Ajuste os parâmetros.")
 
+        print(f"\nO número de arestas deve estar entre {lowA} e {highA}.")
         numA = int(input("Número de Arestas: "))
-        if numA < lowA or (highA is not None and numA > highA):
-            raise ValueError(
-                f"Número de arestas {numA} fora do intervalo [{lowA},{highA or '∞'}]"
-            )
+        if numA < lowA or numA > highA:
+            raise ValueError(f"Número de arestas {numA} fora do intervalo [{lowA},{highA}]")
+
 
         seed = input("Semente (Não obrigatório): ").strip()
         seed = int(seed) if seed else random.randint(0, 1000)
@@ -693,7 +691,7 @@ if __name__ == "__main__":
 
         for i, dataset in enumerate(datasets):
             nomeArq = f"{tipos[tipo]}-{geracao[fator][0]}-{numV}-{numA}-{seed}-{i+1}-{numComp}"
-            arq = f"plots/{nomeArq}.txt"
+            arq = f"{nomeArq}.txt"
 
             if valorado:
                 matriz = criaMatrizAdjacenciasValorada(

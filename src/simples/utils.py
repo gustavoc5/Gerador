@@ -3,12 +3,20 @@ import random
 
 
 
-def dfs(matriz, vertice, visitados):
-    visitados.add(vertice)
-    for vizinho in range(len(matriz)):
-        if matriz[vertice][vizinho] >= 1 and vizinho not in visitados:
-            dfs(matriz, vizinho, visitados)
-
+def dfs(matriz, inicio, visitados):
+    pilha = [inicio]
+    while pilha:
+        vertice = pilha.pop()
+        if vertice not in visitados:
+            visitados.add(vertice)
+            for vizinho in range(len(matriz)):
+                cell = matriz[vertice][vizinho]
+                if isinstance(cell, list):
+                    cond = len(cell) >= 1
+                else:
+                    cond = cell >= 1
+                if cond and vizinho not in visitados:
+                    pilha.append(vizinho)
 
 def compConexas(matriz):
     visitados = set()
@@ -18,6 +26,7 @@ def compConexas(matriz):
             dfs(matriz, vertice, visitados)
             componentes += 1
     return componentes
+
 
 
 def atribuiPesos(matriz, minPeso, maxPeso):
@@ -36,10 +45,19 @@ def tipoGrafo(matriz):
     vert = len(matriz)
     for i in range(vert):
         for j in range(vert):
-            if matriz[i][j] > 1:
-                multipla = True
-            if matriz[i][j] > 0 and i == j:
-                laco = True
+            cell = matriz[i][j]
+
+            if isinstance(cell, list):
+                if len(cell) > 1:
+                    multipla = True
+                if len(cell) > 0 and i == j:
+                    laco = True
+            elif isinstance(cell, int):
+                if cell > 1:
+                    multipla = True
+                if cell > 0 and i == j:
+                    laco = True
+
     if (np.transpose(matriz) == matriz).all():
         dirigido = False
     else:
