@@ -229,6 +229,43 @@ def salva_resultados_csv(resultados, arquivo='resultados_powerlaw.csv'):
 
 # Executar testes
 if __name__ == "__main__":
-    resultados = executa_testes_pwl(n_execucoes=2, vertices_lista=[100, 1000, 10000])
-    salva_resultados_csv(resultados)
-    salva_resumo_csv(resultados, arquivo='resumo_powerlaw.csv')
+    import sys
+    import time
+    
+    # Parâmetros padrão
+    execucoes = 2
+    vertices = [100, 1000, 10000]
+    arquivo_csv = f"resultados_powerlaw_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+    arquivo_resumo = f"resumo_powerlaw_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+    
+    # Processa argumentos de linha de comando
+    if len(sys.argv) > 1:
+        try:
+            execucoes = int(sys.argv[1])
+        except ValueError:
+            print(f"❌ Erro: Número de execuções deve ser um inteiro. Usando padrão: {execucoes}")
+    
+    if len(sys.argv) > 2:
+        try:
+            vertices = [int(x.strip()) for x in sys.argv[2].split(',')]
+        except ValueError:
+            print(f"❌ Erro: Lista de vértices deve ser números separados por vírgula. Usando padrão: {vertices}")
+    
+    if len(sys.argv) > 3:
+        arquivo_csv = sys.argv[3]
+        arquivo_resumo = arquivo_csv.replace('resultados_', 'resumo_')
+    
+    # Exibe configuração
+    print(f"🚀 Configuração de Teste Power-Law:")
+    print(f"   Execuções por tipo: {execucoes}")
+    print(f"   Vértices: {vertices}")
+    print(f"   Arquivo de saída: {arquivo_csv}")
+    print(f"   Arquivo de resumo: {arquivo_resumo}")
+    print(f"   Total estimado: {execucoes * len(vertices) * len(TIPOS_GRAFOS)} testes")
+    print(f"   {'='*50}")
+    
+    # Executa os testes
+    resultados = executa_testes_pwl(n_execucoes=execucoes, vertices_lista=vertices)
+    salva_resultados_csv(resultados, arquivo_csv)
+    salva_resumo_csv(resultados, arquivo=arquivo_resumo)
+    print(f"✅ Testes concluídos! Resultados salvos em: {arquivo_csv}")

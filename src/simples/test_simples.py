@@ -243,4 +243,37 @@ def testa_simples(n_execucoes=NUM_EXECUCOES_PADRAO, vertices_lista=VERTICES_LIST
 
 
 if __name__ == "__main__":
-    testa_simples(n_execucoes=3, vertices_lista=[100, 200])
+    import sys
+    import time
+    
+    # Parâmetros padrão
+    execucoes = 3
+    vertices = [100, 200]
+    arquivo_csv = f"resultados_simples_{time.strftime('%Y%m%d_%H%M%S')}.csv"
+    
+    # Processa argumentos de linha de comando
+    if len(sys.argv) > 1:
+        try:
+            execucoes = int(sys.argv[1])
+        except ValueError:
+            print(f"❌ Erro: Número de execuções deve ser um inteiro. Usando padrão: {execucoes}")
+    
+    if len(sys.argv) > 2:
+        try:
+            vertices = [int(x.strip()) for x in sys.argv[2].split(',')]
+        except ValueError:
+            print(f"❌ Erro: Lista de vértices deve ser números separados por vírgula. Usando padrão: {vertices}")
+    
+    if len(sys.argv) > 3:
+        arquivo_csv = sys.argv[3]
+    
+    # Exibe configuração
+    print(f"🚀 Configuração de Teste:")
+    print(f"   Execuções por tipo: {execucoes}")
+    print(f"   Vértices: {vertices}")
+    print(f"   Arquivo de saída: {arquivo_csv}")
+    print(f"   Total estimado: {execucoes * len(vertices) * len(TIPOS_GRAFOS)} testes")
+    print(f"   {'='*50}")
+    
+    # Executa os testes
+    testa_simples(n_execucoes=execucoes, vertices_lista=vertices, arquivo_csv=arquivo_csv)
