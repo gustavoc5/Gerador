@@ -34,7 +34,7 @@ def testa_simples(n_execucoes=5, vertices_lista=[1000, 5000], arquivo_csv="resul
                 seed = seed_base + execucao
                 numComp = random.choice([0, 1, 2])
                 densPref = random.choice([0, 1, 2])
-                valorado = random.choice([True, False])
+                # valorado = random.choice([True, False])
 
                 try:
                     minA, maxA = verificaAresta(tipo, numV, numComp)
@@ -76,11 +76,11 @@ def testa_simples(n_execucoes=5, vertices_lista=[1000, 5000], arquivo_csv="resul
                         continue
 
                     for dataset in datasets:
-                        if valorado:
-                            matriz = criaMatrizAdjacenciasValorada(dataset, numV, tipo, 1, 10)
-                        else:
-                            matriz = criaMatrizAdjacencias(dataset, numV, tipo)
-
+                        # if valorado:
+                        #     matriz = criaMatrizAdjacenciasValorada(dataset, numV, tipo, 1, 10)
+                        # else:
+                        #     matriz = criaMatrizAdjacencias(dataset, numV, tipo)
+                        matriz = criaMatrizAdjacencias(dataset, numV, tipo)
                         G = nx.DiGraph() if tipo in [1, 21, 31] else nx.Graph()
                         for u in range(len(matriz)):
                             for v in range(len(matriz)):
@@ -140,7 +140,7 @@ def testa_simples(n_execucoes=5, vertices_lista=[1000, 5000], arquivo_csv="resul
                             "num_arestas": len(dataset),
                             "num_componentes": comp,
                             "num_componentes_esperado": numComp,
-                            "valorado": valorado,
+                            # "valorado": valorado,
                             "densidade_preferida": densPref,
                             "tipo_detectado": tipo_detectado,
                             "tipo_ok": correto,

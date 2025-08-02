@@ -659,44 +659,43 @@ if __name__ == "__main__":
         elif tipo == 31:
             g_max = numV * (numV - 1) + numV
 
-        # 6) restrição adicional por densidade
-        if densPref == 1:  # esparso
-            lowA = max(minA, int(0.05 * g_max))  # esparsidade mínima viável
-            highA = max(minA, int(0.2 * g_max))
-        elif densPref == 2:  # denso
-            lowA = max(minA, int(0.8 * g_max))
-            highA = min(maxA, int(g_max))
-        else:  # sem preferência
+        if densPref == 1:
             lowA = minA
-            highA = int(maxA) if not math.isinf(maxA) else int(g_max)
+            highA = int(0.2 * g_max)
+        elif densPref == 2:
+            lowA = int(0.8 * g_max)
+            highA = int(g_max)
+        else:
+            lowA = minA
+            highA = None if math.isinf(maxA) else int(maxA)
 
-        # 7) prompt ao usuário
-        if highA <= lowA:
-            raise ValueError(f"Não há intervalo viável de arestas entre {lowA} e {highA}. Ajuste os parâmetros.")
+        if highA is None:
+            print(f"\nO número de arestas deve ser ≥ {lowA}.")
+        else:
+            print(f"\nO número de arestas deve estar entre {lowA} e {highA}.")
 
-        print(f"\nO número de arestas deve estar entre {lowA} e {highA}.")
         numA = int(input("Número de Arestas: "))
-        if numA < lowA or numA > highA:
-            raise ValueError(f"Número de arestas {numA} fora do intervalo [{lowA},{highA}]")
-
+        if numA < lowA or (highA is not None and numA > highA):
+            raise ValueError(f"Número de arestas {numA} fora do intervalo [{lowA},{highA or '∞'}]")
 
         seed = input("Semente (Não obrigatório): ").strip()
         seed = int(seed) if seed else random.randint(0, 1000)
         n = input("Número de datasets: ").strip()
         n = int(n) if n else 1
-        fator = input("0-Aleatório 1-Parcial 2-Balanceado: ").strip()
-        fator = int(fator) if fator else random.randint(0, 2)
+        if numComp > 1:
+            fator = input("0-Aleatório 1-Parcial 2-Balanceado: ").strip()
+            fator = int(fator) if fator else random.randint(0, 2)
+        else:
+            fator = 0
 
         datasets = geraDataset(tipo, numV, numA, seed, n, numComp, fator)
-
+        
         for i, dataset in enumerate(datasets):
             nomeArq = f"{tipos[tipo]}-{geracao[fator][0]}-{numV}-{numA}-{seed}-{i+1}-{numComp}"
-            arq = f"{nomeArq}.txt"
+            arq = f"../plots/{nomeArq}.txt"
 
             if valorado:
-                matriz = criaMatrizAdjacenciasValorada(
-                    dataset, numV, tipo, minPeso, maxPeso
-                )
+                matriz = criaMatrizAdjacenciasValorada(dataset, numV, tipo, minPeso, maxPeso)
             else:
                 matriz = criaMatrizAdjacencias(dataset, numV, tipo)
 
@@ -709,12 +708,7 @@ if __name__ == "__main__":
             escreveMatrizParaArquivo(matriz, listaAdj, arq, numV, numA, seed, i + 1)
             verGrafo(matriz, nomeArq)
 
-        if (
-            input("\nDigite 'y' para gerar novamente, qualquer outra tecla para sair: ")
-            .strip()
-            .lower()
-            != "y"
-        ):
+        if input("\nDigite 'y' para gerar novamente, qualquer outra tecla para sair: ").strip().lower() != "y":
             break
 
     print("\nPrograma encerrado.")

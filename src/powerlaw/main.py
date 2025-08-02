@@ -2,12 +2,15 @@ from pwl import geraGrafoPwl, tipoGrafo
 from distribuicao import validaDistribuicao
 from visualizacao import visualizaGrafo
 from analise import analisa_grafo
+from constants import TIPOS_GRAFOS, GAMMA_MIN, GAMMA_MAX
 import random
 
 
 def main():
     print("Tipo de grafo:")
-    print("0: Simples, 1: Digrafo, 20: Multigrafo, 21: Multigrafo-Dirigido, 30: Pseudografo, 31: Pseudografo-Dirigido")
+    for tipo, nome in TIPOS_GRAFOS.items():
+        print(f"{tipo}: {nome}")
+    
     tipo = int(input("Tipo: "))
     dirigido = tipo in [1, 21, 31]
 
@@ -15,7 +18,10 @@ def main():
     
     seed = input("Semente (Opcional): ").strip()
     seed = int(seed) if seed else random.randint(0, 1000)
-    gamma = float(input("Expoente (gamma) da distribuição (padrão aleatório entre 2.00 e 3.00): ") or round(random.uniform(2, 3), 2))
+    
+    gamma_input = input(f"Expoente (gamma) da distribuição (padrão aleatório entre {GAMMA_MIN} e {GAMMA_MAX}): ")
+    gamma = float(gamma_input) if gamma_input else round(random.uniform(GAMMA_MIN, GAMMA_MAX), 2)
+    
     arestas, G, graus = geraGrafoPwl(numV, gamma, dirigido, tipo, seed)
 
     print("Número de arestas no grafo final:", G.number_of_edges())
