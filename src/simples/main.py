@@ -6,24 +6,16 @@ from utils import (
     escreveMatrizParaArquivo,
 )
 from visualizacao import verGrafo
+from constants import TIPOS_GRAFOS, GERACAO, DENSIDADE, PESO_MIN_PADRAO, PESO_MAX_PADRAO
 import random
 import math
 import sys
 
-def main():
-    tipos = {
-        0: "Simples",
-        1: "Digrafo",
-        20: "Multigrafo",
-        21: "Multigrafo-Dirigido",
-        30: "Pseudografo",
-        31: "Pseudografo-Dirigido",
-    }
-    geracao = {0: "Aleatório", 1: "Parcialmente Balanceado", 2: "Balanceado"}
 
+def main():
     while True:
         print("\nTipos de grafo disponíveis:")
-        for k, v in tipos.items():
+        for k, v in TIPOS_GRAFOS.items():
             print(f"  {k}: {v}")
         tipo = int(input("Tipo Grafo: "))
         numV = int(input("Número de Vértices: "))
@@ -32,17 +24,16 @@ def main():
         numComp = int(numComp) if numComp else 0
 
         print("\nPreferência de densidade:")
-        print("  0: Sem preferência")
-        print("  1: Esparso (densidade ≤ 0.2)")
-        print("  2: Denso   (densidade ≥ 0.8)")
+        for k, v in DENSIDADE.items():
+            print(f"  {k}: {v}")
         densPref = int(input("Escolha [0/1/2] (padrão 0): ") or 0)
 
         valorado = input("O grafo será valorado? (y/n): ").strip().lower() == "y"
         if valorado:
-            minPeso = input("Peso mínimo das arestas (padrão = 1): ").strip()
-            maxPeso = input("Peso máximo das arestas (padrão = 10): ").strip()
-            minPeso = int(minPeso) if minPeso.isdigit() else 1
-            maxPeso = int(maxPeso) if maxPeso.isdigit() else 10
+            minPeso = input(f"Peso mínimo das arestas (padrão = {PESO_MIN_PADRAO}): ").strip()
+            maxPeso = input(f"Peso máximo das arestas (padrão = {PESO_MAX_PADRAO}): ").strip()
+            minPeso = int(minPeso) if minPeso.isdigit() else PESO_MIN_PADRAO
+            maxPeso = int(maxPeso) if maxPeso.isdigit() else PESO_MAX_PADRAO
 
         minA, maxA = verificaAresta(tipo, numV, numComp)
 
@@ -87,7 +78,7 @@ def main():
         datasets = geraDataset(tipo, numV, numA, seed, n, numComp, fator)
         
         for i, dataset in enumerate(datasets):
-            nomeArq = f"{tipos[tipo]}-{geracao[fator][0]}-{numV}-{numA}-{seed}-{i+1}-{numComp}"
+            nomeArq = f"{TIPOS_GRAFOS[tipo]}-{GERACAO[fator][0]}-{numV}-{numA}-{seed}-{i+1}-{numComp}"
             arq = f"../plots/{nomeArq}.txt"
 
             if valorado:
@@ -109,6 +100,7 @@ def main():
 
     print("\nPrograma encerrado.")
     sys.exit(0)
+
 
 if __name__ == "__main__":
     main()

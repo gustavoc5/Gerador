@@ -13,28 +13,153 @@ from utils import (
     tipoGrafo,
     compConexas,
 )
+from constants import (
+    TIPOS_GRAFOS, GERACAO, TIPOS_DIRIGIDOS, 
+    NUM_EXECUCOES_PADRAO, VERTICES_LISTA_PADRAO, MAX_AMOSTRAS_HOP
+)
+from exceptions import GrafoGenerationError
 
-def testa_simples(n_execucoes=5, vertices_lista=[1000, 5000], arquivo_csv="resultados_simples.csv"):
-    tipos = {
-        0: "Simples",
-        1: "Digrafo",
-        20: "Multigrafo",
-        21: "Multigrafo-Dirigido",
-        30: "Pseudografo",
-        31: "Pseudografo-Dirigido",
+
+def matrizParaNetworkX(matriz, tipo):
+    """Converte matriz para NetworkX de forma eficiente."""
+    G = nx.DiGraph() if tipo in TIPOS_DIRIGIDOS else nx.Graph()
+    edges = []
+    
+    for u in range(len(matriz)):
+        for v in range(len(matriz)):
+            cell = matriz[u][v]
+            if isinstance(cell, list):
+                edges.extend([(u, v)] * len(cell))
+            elif cell > 0:
+                edges.extend([(u, v)] * cell)
+    
+    G.add_edges_from(edges)
+    return G
+
+
+def calcula_metricas_basicas(G, dataset):
+    """Calcula métricas básicas do grafo."""
+    graus = [d for n, d in G.degree()]
+    return {
+        'grau_medio': np.mean(graus),
+        'grau_max': max(graus),
+        'num_arestas': len(dataset)
     }
-    geracao = {0: "Aleatório", 1: "Parcial", 2: "Balanceado"}
+
+
+def calcula_metricas_centralidade(G):
+    """Calcula métricas de centralidade."""
+    try:
+        G_und = G.to_undirected() if G.is_directed() else G
+    except:
+        G_und = nx.Graph()
+        G_und.add_edges_from(G.edges())
+    
+    deg_cent = nx.degree_centrality(G_und)
+    pr_cent = nx.pagerank(G, alpha=0.85)
+    
+    return {
+        'avg_degree_centrality': np.mean(list(deg_cent.values())),
+        'max_degree_centrality': np.max(list(deg_cent.values())),
+        'avg_pagerank': np.mean(list(pr_cent.values())),
+        'max_pagerank': np.max(list(pr_cent.values()))
+    }
+
+
+def calcula_metricas_hop(G):
+    """Calcula métricas de distância (hop plot)."""
+    try:
+        G_und = G.to_undirected() if G.is_directed() else G
+    except:
+        G_und = nx.Graph()
+        G_und.add_edges_from(G.edges())
+    
+    try:
+        nodes = list(G_und.nodes())
+        distancias = []
+        for _ in range(min(MAX_AMOSTRAS_HOP, len(nodes) ** 2)):
+            u, v = random.sample(nodes, 2)
+            try:
+                d = nx.shortest_path_length(G_und, source=u, target=v)
+                distancias.append(d)
+            except nx.NetworkXNoPath:
+                continue
+        
+        if distancias:
+            media_hop = np.mean(distancias)
+            diametro_hop = np.max(distancias)
+        else:
+            media_hop = diametro_hop = -1
+    except:
+        media_hop = diametro_hop = -1
+    
+    return {
+        'media_hop': media_hop,
+        'diametro_hop': diametro_hop
+    }
+
+
+def calcula_metricas_comunidades(G):
+    """Calcula métricas de comunidades."""
+    try:
+        G_und = G.to_undirected() if G.is_directed() else G
+    except:
+        G_und = nx.Graph()
+        G_und.add_edges_from(G.edges())
+    
+    try:
+        lp_coms = list(nx_comm.label_propagation_communities(G_und))
+        n_lp = len(lp_coms)
+    except:
+        n_lp = -1
+    
+    return {
+        'n_communities_lp': n_lp
+    }
+
+
+def calcula_metricas_completas(G, dataset, matriz, tipo, numComp):
+    """Calcula todas as métricas do grafo."""
+    # Métricas básicas
+    metricas_basicas = calcula_metricas_basicas(G, dataset)
+    
+    # Métricas de centralidade
+    metricas_cent = calcula_metricas_centralidade(G)
+    
+    # Métricas de hop
+    metricas_hop = calcula_metricas_hop(G)
+    
+    # Métricas de comunidades
+    metricas_com = calcula_metricas_comunidades(G)
+    
+    # Validações
+    tipo_detectado = tipoGrafo(matriz)
+    correto = tipo_detectado == tipo
+    comp = compConexas(matriz) if numComp > 1 else -1
+    
+    return {
+        **metricas_basicas,
+        **metricas_cent,
+        **metricas_hop,
+        **metricas_com,
+        'tipo_detectado': tipo_detectado,
+        'tipo_ok': correto,
+        'num_componentes': comp
+    }
+
+
+def testa_simples(n_execucoes=NUM_EXECUCOES_PADRAO, vertices_lista=VERTICES_LISTA_PADRAO, arquivo_csv="resultados_simples.csv"):
+    """Executa bateria de testes para diferentes tipos de grafos."""
     resultados = []
 
     for numV in vertices_lista:
-        for tipo in tipos:
+        for tipo in TIPOS_GRAFOS:
             seed_base = random.randint(100, 9999)
 
             for execucao in range(n_execucoes):
                 seed = seed_base + execucao
                 numComp = random.choice([0, 1, 2])
                 densPref = random.choice([0, 1, 2])
-                # valorado = random.choice([True, False])
 
                 try:
                     minA, maxA = verificaAresta(tipo, numV, numComp)
@@ -65,7 +190,7 @@ def testa_simples(n_execucoes=5, vertices_lista=[1000, 5000], arquivo_csv="resul
                 n = 1
                 fator = random.choice([0, 1, 2]) if numComp > 1 else 0
 
-                print(f"🔄 Tipo={tipo} Seed={seed} Geração={geracao[fator]} Arestas={numA} V={numV}")
+                print(f"🔄 Tipo={tipo} Seed={seed} Geração={GERACAO[fator]} Arestas={numA} V={numV}")
 
                 try:
                     start = time.time()
@@ -76,86 +201,34 @@ def testa_simples(n_execucoes=5, vertices_lista=[1000, 5000], arquivo_csv="resul
                         continue
 
                     for dataset in datasets:
-                        # if valorado:
-                        #     matriz = criaMatrizAdjacenciasValorada(dataset, numV, tipo, 1, 10)
-                        # else:
-                        #     matriz = criaMatrizAdjacencias(dataset, numV, tipo)
                         matriz = criaMatrizAdjacencias(dataset, numV, tipo)
-                        G = nx.DiGraph() if tipo in [1, 21, 31] else nx.Graph()
-                        for u in range(len(matriz)):
-                            for v in range(len(matriz)):
-                                cell = matriz[u][v]
-                                if isinstance(cell, list):
-                                    for _ in cell:
-                                        G.add_edge(u, v)
-                                elif cell > 0:
-                                    for _ in range(cell):
-                                        G.add_edge(u, v)
-
-                        graus = [d for n, d in G.degree()]
-                        grau_medio = np.mean(graus)
-                        grau_max = max(graus)
-
-                        G_und = G.to_undirected() if G.is_directed() else G
-
-                        try:
-                            lp_coms = list(nx_comm.label_propagation_communities(G_und))
-                            n_lp = len(lp_coms)
-                        except:
-                            n_lp = -1
-
-                        deg_cent = nx.degree_centrality(G_und)
-                        pr_cent = nx.pagerank(G, alpha=0.85)
-
-                        avg_deg = np.mean(list(deg_cent.values()))
-                        max_deg = np.max(list(deg_cent.values()))
-                        avg_pr = np.mean(list(pr_cent.values()))
-                        max_pr = np.max(list(pr_cent.values()))
-
-                        try:
-                            nodes = list(G_und.nodes())
-                            distancias = []
-                            for _ in range(min(10000, len(nodes) ** 2)):
-                                u, v = random.sample(nodes, 2)
-                                try:
-                                    d = nx.shortest_path_length(G_und, source=u, target=v)
-                                    distancias.append(d)
-                                except nx.NetworkXNoPath:
-                                    continue
-                            media_hop = np.mean(distancias) if distancias else -1
-                            diametro_hop = np.max(distancias) if distancias else -1
-                        except:
-                            media_hop = diametro_hop = -1
-
-                        tipo_detectado = tipoGrafo(matriz)
-                        correto = tipo_detectado == tipo
-                        comp = compConexas(matriz) if numComp > 1 else -1
-
-                        resultados.append({
+                        G = matrizParaNetworkX(matriz, tipo)
+                        
+                        # Calcula todas as métricas
+                        metricas = calcula_metricas_completas(G, dataset, matriz, tipo, numComp)
+                        
+                        # Adiciona informações básicas
+                        resultado = {
                             "vertices": numV,
                             "tipo": tipo,
-                            "descricao": tipos[tipo],
+                            "descricao": TIPOS_GRAFOS[tipo],
                             "execucao": execucao + 1,
                             "seed": seed,
-                            "num_arestas": len(dataset),
-                            "num_componentes": comp,
                             "num_componentes_esperado": numComp,
-                            # "valorado": valorado,
                             "densidade_preferida": densPref,
-                            "tipo_detectado": tipo_detectado,
-                            "tipo_ok": correto,
-                            "grau_medio": round(grau_medio, 4),
-                            "grau_max": round(grau_max, 4),
-                            "n_communities_lp": n_lp,
-                            "avg_degree_centrality": round(avg_deg, 4),
-                            "max_degree_centrality": round(max_deg, 4),
-                            "avg_pagerank": round(avg_pr, 4),
-                            "max_pagerank": round(max_pr, 4),
-                            "media_hop": round(media_hop, 4) if media_hop != -1 else -1,
-                            "diametro_hop": round(diametro_hop, 4) if diametro_hop != -1 else -1,
-                            "tempo_geracao_s": round(tempo_geracao, 4)
-                        })
+                            "tempo_geracao_s": round(tempo_geracao, 4),
+                            **metricas
+                        }
+                        
+                        # Arredonda valores numéricos
+                        for key, value in resultado.items():
+                            if isinstance(value, float) and key != 'tempo_geracao_s':
+                                resultado[key] = round(value, 4)
+                        
+                        resultados.append(resultado)
 
+                except GrafoGenerationError as e:
+                    print(f"❌ Erro de geração: {e}")
                 except Exception as e:
                     print(f"❌ Erro: {e}")
 
@@ -167,6 +240,7 @@ def testa_simples(n_execucoes=5, vertices_lista=[1000, 5000], arquivo_csv="resul
         print(f"\n✅ {len(resultados)} execuções finalizadas. Resultados salvos em: {arquivo_csv}")
     else:
         print("\n⚠️ Nenhum resultado válido foi gerado.")
+
 
 if __name__ == "__main__":
     testa_simples(n_execucoes=5, vertices_lista=[100, 500])
