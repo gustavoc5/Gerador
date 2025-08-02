@@ -40,40 +40,45 @@ def atribuiPesos(matriz, minPeso, maxPeso):
 
 
 def tipoGrafo(matriz):
+    """Detecta o tipo de grafo baseado na matriz de adjacências."""
     laco = False
     multipla = False
     vert = len(matriz)
+    
     for i in range(vert):
         for j in range(vert):
             cell = matriz[i][j]
-
+            
+            # Verifica se é uma lista (para grafos valorados)
             if isinstance(cell, list):
                 if len(cell) > 1:
                     multipla = True
                 if len(cell) > 0 and i == j:
                     laco = True
-            elif isinstance(cell, int):
+            # Verifica se é um número inteiro
+            elif isinstance(cell, (int, float, np.integer)):
                 if cell > 1:
                     multipla = True
                 if cell > 0 and i == j:
                     laco = True
-
-    if (np.transpose(matriz) == matriz).all():
-        dirigido = False
-    else:
-        dirigido = True
+    
+    # Verifica se é dirigido (matriz != transposta)
+    dirigido = not (np.transpose(matriz) == matriz).all()
+    
+    # Determina o tipo baseado nas características
     if dirigido and multipla and laco:
-        tipo = 31
+        tipo = 31  # Pseudografo-Dirigido
     elif dirigido and multipla:
-        tipo = 21
+        tipo = 21  # Multigrafo-Dirigido
     elif dirigido:
-        tipo = 1
+        tipo = 1   # Digrafo
     elif laco:
-        tipo = 30
+        tipo = 30  # Pseudografo
     elif multipla:
-        tipo = 20
+        tipo = 20  # Multigrafo
     else:
-        tipo = 0
+        tipo = 0   # Simples
+    
     return tipo
 
 def criaListaAdjacencias(matriz):
@@ -93,11 +98,23 @@ def criaListaAdjacencias(matriz):
 
 
 def criaMatrizAdjacencias(arestas, numV, tipo):
+    """Cria matriz de adjacências preservando arestas múltiplas e laços."""
     matriz = np.array([[0] * numV for _ in range(numV)])
+    
+    # Conta as ocorrências de cada aresta
+    from collections import defaultdict
+    arestas_count = defaultdict(int)
+    
     for u, v in arestas:
-        matriz[u][v] += 1
-        if "0" in str(tipo) and u != v:
-            matriz[v][u] += 1
+        arestas_count[(u, v)] += 1
+    
+    # Aplica as arestas na matriz
+    for (u, v), count in arestas_count.items():
+        matriz[u][v] = count
+        # Para grafos não dirigidos, adiciona na direção oposta
+        if tipo in [0, 20, 30] and u != v:
+            matriz[v][u] = count
+    
     return matriz
 
 

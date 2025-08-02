@@ -243,4 +243,4 @@ def testa_simples(n_execucoes=NUM_EXECUCOES_PADRAO, vertices_lista=VERTICES_LIST
 
 
 if __name__ == "__main__":
-    testa_simples(n_execucoes=5, vertices_lista=[100, 500])
+    testa_simples(n_execucoes=3, vertices_lista=[100, 200])
