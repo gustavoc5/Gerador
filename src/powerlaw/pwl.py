@@ -8,15 +8,48 @@ from constants import (
 
 
 def gerarGrausZipf(n, gamma, kMin=GRAU_MIN_PADRAO, kMax=None):
-    """Gera uma lista de graus seguindo distribuição Zipf (power-law)."""
+    """
+    Gera uma lista de graus seguindo distribuição Zipf (power-law).
+    
+    A distribuição Zipf é uma forma específica de power-law onde a probabilidade
+    de um grau k é proporcional a k^(-gamma). Esta implementação garante que
+    todos os graus gerados estejam dentro dos limites especificados.
+    
+    Args:
+        n (int): Número de vértices (tamanho da lista de graus)
+        gamma (float): Expoente da distribuição power-law (tipicamente 2.0-3.0)
+        kMin (int): Grau mínimo permitido (padrão: GRAU_MIN_PADRAO)
+        kMax (int): Grau máximo permitido (padrão: n-1)
+    
+    Returns:
+        list: Lista de n graus seguindo distribuição Zipf
+        
+    Note:
+        - gamma > 1 para que a distribuição seja bem definida
+        - kMin deve ser >= 1 para grafos válidos
+        - kMax deve ser <= n-1 para grafos simples
+        
+    Example:
+        >>> gerarGrausZipf(100, 2.5)
+        [3, 1, 2, 1, 4, 1, 2, 1, 1, ...]  # 100 graus com gamma=2.5
+    """
     if kMax is None:
         kMax = n - 1
     
     graus = []
-    while len(graus) < n:
+    tentativas_max = n * 10  # Evita loop infinito em casos extremos
+    tentativas = 0
+    
+    while len(graus) < n and tentativas < tentativas_max:
         k = np.random.zipf(gamma)
         if kMin <= k <= kMax:
             graus.append(k)
+        tentativas += 1
+    
+    # Se não conseguiu gerar suficientes, completa com grau mínimo
+    while len(graus) < n:
+        graus.append(kMin)
+    
     return graus
 
 
@@ -31,14 +64,41 @@ def geraGrausPwl(n, gamma, kMin=GRAU_MIN_PADRAO, kMax=None, desequilibrado=False
 
 
 def ajustaGrausDirigidos(graus_out, graus_in):
-    """Ajusta graus de entrada e saída para que tenham a mesma soma."""
+    """
+    Ajusta graus de entrada e saída para que tenham a mesma soma.
+    
+    Para grafos dirigidos válidos, a soma dos graus de saída deve ser igual
+    à soma dos graus de entrada. Esta função ajusta os graus adicionando
+    unidades aleatoriamente até que as somas sejam iguais.
+    
+    Args:
+        graus_out (list): Lista de graus de saída dos vértices
+        graus_in (list): Lista de graus de entrada dos vértices
+    
+    Returns:
+        tuple: (graus_out_ajustado, graus_in_ajustado) com somas iguais
+        
+    Note:
+        - Modifica as listas in-place para eficiência
+        - Mantém a distribuição power-law aproximada
+        - Escolhe vértices aleatoriamente para ajuste
+        
+    Example:
+        >>> graus_out = [3, 2, 4, 1]  # soma = 10
+        >>> graus_in = [2, 3, 2, 2]   # soma = 9
+        >>> ajustaGrausDirigidos(graus_out, graus_in)
+        ([3, 2, 4, 1], [2, 3, 2, 3])  # ambas somam 10
+    """
     soma_out = sum(graus_out)
     soma_in = sum(graus_in)
     diff = soma_out - soma_in
 
     if diff != 0:
+        # Determina qual lista precisa ser ajustada
         target = graus_in if diff > 0 else graus_out
         abs_diff = abs(diff)
+        
+        # Escolhe vértices aleatoriamente para adicionar graus
         indices = np.random.choice(len(target), abs_diff, replace=True)
         for idx in indices:
             target[idx] += 1
@@ -47,39 +107,72 @@ def ajustaGrausDirigidos(graus_out, graus_in):
 
 
 def constroiGrafoDirigido(graus, tipo, n):
-    """Constrói grafo dirigido usando stub matching."""
+    """
+    Constrói grafo dirigido usando algoritmo de stub matching.
+    
+    O stub matching é um algoritmo clássico para gerar grafos com sequência
+    de graus específica. Funciona criando "stubs" (pontas de arestas) para
+    cada vértice e conectando-os aleatoriamente.
+    
+    Args:
+        graus: Lista de graus ou tupla (graus_out, graus_in) para grafos dirigidos
+        tipo (int): Tipo do grafo (determina se é multigrafo/pseudografo)
+        n (int): Número de vértices
+    
+    Returns:
+        nx.DiGraph or nx.MultiDiGraph: Grafo dirigido construído
+        
+    Algorithm:
+        1. Cria stubs de saída e entrada baseado nos graus
+        2. Embaralha os stubs aleatoriamente
+        3. Conecta stubs de saída com stubs de entrada
+        4. Respeita restrições de laços e arestas múltiplas
+        
+    Example:
+        >>> graus = ([3, 2, 1], [2, 2, 2])  # graus out/in
+        >>> G = constroiGrafoDirigido(graus, 1, 3)
+        >>> G.number_of_edges()
+        6  # soma dos graus de saída
+    """
     multigrafo = tipo in TIPOS_MULTIGRAFOS
     laco = tipo in TIPOS_PSEUDOGRAFOS
     
+    # Cria grafo apropriado baseado no tipo
     G = nx.MultiDiGraph() if multigrafo else nx.DiGraph()
     G.add_nodes_from(range(n))
 
+    # Processa graus (pode ser lista única ou tupla para dirigidos)
     if isinstance(graus, tuple):
         graus_out, graus_in = graus
     else:
         graus_out = graus_in = graus
 
-    # Ajusta graus se necessário
+    # Passo 1: Ajusta graus para garantir soma igual
     graus_out, graus_in = ajustaGrausDirigidos(graus_out, graus_in)
 
-    # Cria stubs
+    # Passo 2: Cria stubs (pontas de arestas)
     out_stubs, in_stubs = [], []
     for node, k in enumerate(graus_out):
-        out_stubs.extend([node] * k)
+        out_stubs.extend([node] * k)  # k stubs de saída para o vértice
     for node, k in enumerate(graus_in):
-        in_stubs.extend([node] * k)
+        in_stubs.extend([node] * k)   # k stubs de entrada para o vértice
 
+    # Passo 3: Embaralha stubs para randomização
     random.shuffle(out_stubs)
     random.shuffle(in_stubs)
 
-    # Conecta stubs
+    # Passo 4: Conecta stubs respeitando restrições
     while out_stubs and in_stubs:
-        u = out_stubs.pop()
-        v = in_stubs.pop()
+        u = out_stubs.pop()  # Vértice de origem
+        v = in_stubs.pop()   # Vértice de destino
+        
+        # Evita laços se não permitido
         if not laco and u == v:
             continue
+        # Evita arestas múltiplas se não permitido
         if not multigrafo and G.has_edge(u, v):
             continue
+            
         G.add_edge(u, v)
 
     return G

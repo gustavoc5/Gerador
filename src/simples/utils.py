@@ -4,27 +4,80 @@ import random
 
 
 def dfs(matriz, inicio, visitados):
+    """
+    Implementa busca em profundidade (DFS) para detectar conectividade.
+    
+    Esta função percorre o grafo a partir de um vértice inicial usando DFS
+    iterativo (com pilha) para marcar todos os vértices alcançáveis.
+    
+    Args:
+        matriz: Matriz de adjacências do grafo
+        inicio (int): Vértice inicial para iniciar a busca
+        visitados (set): Conjunto de vértices já visitados (modificado in-place)
+    
+    Algorithm:
+        - Usa pilha para implementação iterativa (mais eficiente para grafos grandes)
+        - Suporta tanto grafos simples quanto multigrafos/pseudografos
+        - Marca vértices como visitados durante a busca
+        
+    Note:
+        - Modifica o conjunto visitados in-place
+        - Detecta arestas tanto em listas (grafos valorados) quanto números
+    """
     pilha = [inicio]
     while pilha:
         vertice = pilha.pop()
         if vertice not in visitados:
             visitados.add(vertice)
+            # Explora todos os vizinhos do vértice atual
             for vizinho in range(len(matriz)):
                 cell = matriz[vertice][vizinho]
+                # Verifica se há conexão (suporta diferentes formatos)
                 if isinstance(cell, list):
-                    cond = len(cell) >= 1
+                    cond = len(cell) >= 1  # Lista não vazia = aresta existe
                 else:
-                    cond = cell >= 1
+                    cond = cell >= 1       # Número >= 1 = aresta existe
                 if cond and vizinho not in visitados:
                     pilha.append(vizinho)
 
 def compConexas(matriz):
+    """
+    Calcula o número de componentes conexas em um grafo.
+    
+    Uma componente conexa é um subgrafo onde todos os vértices são alcançáveis
+    entre si. Esta função conta quantas dessas componentes existem no grafo.
+    
+    Args:
+        matriz: Matriz de adjacências do grafo
+    
+    Returns:
+        int: Número de componentes conexas
+        
+    Algorithm:
+        - Inicializa conjunto de vértices visitados
+        - Para cada vértice não visitado, executa DFS
+        - Cada DFS marca uma componente conexa completa
+        - Conta o número de DFSs executados
+        
+    Complexity:
+        - Time: O(V²) onde V é o número de vértices
+        - Space: O(V) para o conjunto de visitados
+        
+    Example:
+        >>> matriz = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
+        >>> compConexas(matriz)
+        2  # 2 componentes: {0,1} e {2}
+    """
     visitados = set()
     componentes = 0
+    
+    # Para cada vértice não visitado, inicia uma nova busca
     for vertice in range(len(matriz)):
         if vertice not in visitados:
+            # DFS marca todos os vértices da componente atual
             dfs(matriz, vertice, visitados)
             componentes += 1
+    
     return componentes
 
 
@@ -40,11 +93,45 @@ def atribuiPesos(matriz, minPeso, maxPeso):
 
 
 def tipoGrafo(matriz):
-    """Detecta o tipo de grafo baseado na matriz de adjacências."""
+    """
+    Detecta automaticamente o tipo de grafo baseado na matriz de adjacências.
+    
+    Esta função analisa a estrutura da matriz para determinar as características
+    do grafo e classifica em um dos 6 tipos suportados.
+    
+    Características analisadas:
+    - Dirigido: Matriz não é simétrica
+    - Arestas múltiplas: Valores > 1 na matriz
+    - Laços: Valores > 0 na diagonal principal
+    
+    Args:
+        matriz: Matriz de adjacências do grafo
+    
+    Returns:
+        int: Tipo do grafo conforme codificação:
+            - 0: Simples (não dirigido, sem laços, sem arestas múltiplas)
+            - 1: Digrafo (dirigido, sem laços, sem arestas múltiplas)
+            - 20: Multigrafo (não dirigido, sem laços, com arestas múltiplas)
+            - 21: Multigrafo-Dirigido (dirigido, sem laços, com arestas múltiplas)
+            - 30: Pseudografo (não dirigido, com laços, com arestas múltiplas)
+            - 31: Pseudografo-Dirigido (dirigido, com laços, com arestas múltiplas)
+    
+    Algorithm:
+        1. Verifica presença de laços (diagonal principal)
+        2. Verifica presença de arestas múltiplas (valores > 1)
+        3. Verifica se é dirigido (simetria da matriz)
+        4. Classifica baseado nas características encontradas
+        
+    Example:
+        >>> matriz = [[0, 2, 0], [2, 0, 1], [0, 1, 0]]
+        >>> tipoGrafo(matriz)
+        20  # Multigrafo (aresta múltipla entre 0 e 1)
+    """
     laco = False
     multipla = False
     vert = len(matriz)
     
+    # Passo 1: Analisa cada célula da matriz
     for i in range(vert):
         for j in range(vert):
             cell = matriz[i][j]
@@ -52,20 +139,20 @@ def tipoGrafo(matriz):
             # Verifica se é uma lista (para grafos valorados)
             if isinstance(cell, list):
                 if len(cell) > 1:
-                    multipla = True
+                    multipla = True  # Múltiplas arestas
                 if len(cell) > 0 and i == j:
-                    laco = True
-            # Verifica se é um número inteiro
+                    laco = True      # Laço detectado
+            # Verifica se é um número (suporta numpy.integer)
             elif isinstance(cell, (int, float, np.integer)):
                 if cell > 1:
-                    multipla = True
+                    multipla = True  # Múltiplas arestas
                 if cell > 0 and i == j:
-                    laco = True
+                    laco = True      # Laço detectado
     
-    # Verifica se é dirigido (matriz != transposta)
+    # Passo 2: Verifica se é dirigido (matriz não simétrica)
     dirigido = not (np.transpose(matriz) == matriz).all()
     
-    # Determina o tipo baseado nas características
+    # Passo 3: Classifica baseado nas características encontradas
     if dirigido and multipla and laco:
         tipo = 31  # Pseudografo-Dirigido
     elif dirigido and multipla:

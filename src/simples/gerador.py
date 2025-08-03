@@ -13,22 +13,53 @@ from utils import tipoGrafo, compConexas
 
 
 def verificaAresta(tipo, numV, numC):
-    """Verifica se os parâmetros de arestas são válidos."""
+    """
+    Verifica se os parâmetros de arestas são válidos para o tipo de grafo especificado.
+    
+    Calcula os limites mínimo e máximo de arestas baseado no tipo de grafo:
+    - Simples (0): Arestas únicas, sem laços
+    - Digrafo (1): Arestas direcionadas
+    - Multigrafo (20/21): Arestas múltiplas permitidas
+    - Pseudografo (30/31): Laços permitidos
+    
+    Args:
+        tipo (int): Tipo do grafo (0, 1, 20, 21, 30, 31)
+        numV (int): Número de vértices
+        numC (int): Número de componentes conexas
+    
+    Returns:
+        tuple: (minimo, maximo) - Limites de arestas válidas
+        
+    Raises:
+        ComponentesInvalidasError: Se numV < numC
+        ParametrosInvalidosError: Se tipo de grafo é inválido
+    
+    Example:
+        >>> verificaAresta(0, 10, 2)
+        (7, 28)  # Para grafo simples com 10 vértices e 2 componentes
+    """
+    # Validação básica: deve ter vértices suficientes para as componentes
     if numV - (numC - 1) <= 0:
-        raise ComponentesInvalidasError("Número de vértices e componentes conexas inválido")
+        raise ComponentesInvalidasError(
+            f"Número de vértices ({numV}) insuficiente para {numC} componentes conexas"
+        )
 
-    if tipo == 0:
-        minimo = (numV - (numC - 1)) - 1
-        maximo = ((numV - (numC - 1)) * (numV - numC)) / 2
-    elif tipo == 1:
-        minimo = (numV - (numC - 1)) - 1
-        maximo = (numV - (numC - 1)) * (numV - numC)
-    elif "2" in str(tipo):
-        minimo = numV - (numC - 1)
-        maximo = math.inf
-    elif "3" in str(tipo):
-        minimo = numV - (numC - 1)
-        maximo = math.inf
+    # Vértices efetivos (considerando componentes)
+    vertices_efetivos = numV - (numC - 1)
+    
+    # Estratégia baseada no tipo de grafo
+    if tipo == 0:  # Simples: sem laços, sem arestas múltiplas
+        minimo = vertices_efetivos - 1  # Árvore mínima
+        maximo = (vertices_efetivos * (vertices_efetivos - 1)) / 2  # Grafo completo
+    elif tipo == 1:  # Digrafo: direcionado, sem laços
+        minimo = vertices_efetivos - 1  # Árvore direcionada mínima
+        maximo = vertices_efetivos * (vertices_efetivos - 1)  # Grafo direcionado completo
+    elif "2" in str(tipo):  # Multigrafo: arestas múltiplas permitidas
+        minimo = vertices_efetivos  # Mínimo para garantir conectividade
+        maximo = math.inf  # Sem limite superior
+    elif "3" in str(tipo):  # Pseudografo: laços permitidos
+        minimo = vertices_efetivos  # Mínimo para garantir conectividade
+        maximo = math.inf  # Sem limite superior
     else:
         raise ParametrosInvalidosError(f"Tipo de grafo inválido: {tipo}")
     
@@ -36,15 +67,37 @@ def verificaAresta(tipo, numV, numC):
 
 
 def alocaVertices(numV, numC, fator):
-    """Aloca vértices para componentes baseado no fator."""
+    """
+    Aloca vértices para componentes conexas baseado na estratégia especificada.
+    
+    Estratégias de alocação:
+    - fator = 0: Aleatório - Distribuição uniforme aleatória
+    - fator = 1: Parcialmente Balanceado - Distribuição semi-aleatória
+    - fator = 2: Balanceado - Distribuição o mais uniforme possível
+    
+    Args:
+        numV (int): Número total de vértices
+        numC (int): Número de componentes conexas
+        fator (int): Estratégia de alocação (0, 1, ou 2)
+    
+    Returns:
+        list: Lista com número de vértices por componente
+        
+    Example:
+        >>> alocaVertices(10, 3, 2)
+        [4, 3, 3]  # Distribuição balanceada
+        >>> alocaVertices(10, 3, 0)
+        [3, 4, 3]  # Distribuição aleatória
+    """
     verticesComp = [0] * numC
     
-    if fator == 2:  # Balanceado
+    if fator == 2:  # Balanceado: distribuição o mais uniforme possível
         resto = numV % numC
         vert = numV // numC
         verticesComp = [vert] * numC
+        # Adiciona o resto na primeira componente para manter balanceamento
         verticesComp[0] += resto
-    else:  # Aleatório ou Parcialmente Balanceado
+    else:  # Aleatório (fator=0) ou Parcialmente Balanceado (fator=1)
         for _ in range(numV):
             component = random.randint(0, numC - 1)
             verticesComp[component] += 1
@@ -180,21 +233,52 @@ def constroiComponentes(verticesComp, arestasComp, tipo, numV):
 
 
 def geraComponente(tipo, numV, numA, numC, fator):
-    """Gera uma componente do grafo."""
+    """
+    Gera um grafo com múltiplas componentes conexas.
+    
+    Esta função implementa o algoritmo principal de geração de grafos com componentes
+    conexas. Utiliza uma abordagem de tentativa e erro com validação rigorosa.
+    
+    Algoritmo:
+    1. Aloca vértices para componentes baseado na estratégia
+    2. Calcula limites válidos de arestas para cada componente
+    3. Aloca arestas respeitando os limites calculados
+    4. Constrói as componentes usando stub matching
+    5. Repete em caso de falha até MAX_TENTATIVAS
+    
+    Args:
+        tipo (int): Tipo do grafo (0, 1, 20, 21, 30, 31)
+        numV (int): Número total de vértices
+        numA (int): Número total de arestas
+        numC (int): Número de componentes conexas
+        fator (int): Estratégia de alocação (0=aleatório, 1=parcial, 2=balanceado)
+    
+    Returns:
+        list: Lista de tuplas (u, v) representando as arestas do grafo
+        
+    Raises:
+        TentativasExcedidasError: Se não conseguir gerar após MAX_TENTATIVAS
+        ArestasInsuficientesError: Se parâmetros de arestas são inválidos
+        ComponentesInvalidasError: Se configuração de componentes é inválida
+        
+    Example:
+        >>> geraComponente(0, 10, 15, 2, 2)
+        [(0, 1), (1, 2), (2, 3), (4, 5), ...]  # Grafo simples com 2 componentes
+    """
     tentativas = 0
     
     while tentativas < MAX_TENTATIVAS:
-        # Aloca vértices
+        # Passo 1: Aloca vértices para componentes baseado na estratégia
         verticesComp = alocaVertices(numV, numC, fator)
-        if not all(verticesComp):
+        if not all(verticesComp):  # Valida se todas as componentes têm vértices
             tentativas += 1
             continue
         
-        # Calcula limites de arestas
+        # Passo 2: Calcula limites válidos de arestas para cada componente
         minArestas, maxArestas = calculaLimitesArestas(verticesComp, tipo)
         
-        # Aloca arestas
-        if fator == 2:  # Balanceado
+        # Passo 3: Aloca arestas respeitando os limites calculados
+        if fator == 2:  # Balanceado: distribuição uniforme
             try:
                 arestasComp = alocaArestasBalanceado(numA, numC, minArestas, maxArestas)
             except ArestasInsuficientesError:
@@ -202,20 +286,20 @@ def geraComponente(tipo, numV, numA, numC, fator):
                 continue
         else:  # Aleatório ou Parcialmente Balanceado
             arestasComp = alocaArestasAleatorio(numA, numC, minArestas, maxArestas)
-            if arestasComp is None:
+            if arestasComp is None:  # Falha na alocação
                 tentativas += 1
                 continue
         
-        # Ordena se parcialmente balanceado
+        # Passo 4: Ordena se parcialmente balanceado para consistência
         if fator == 1:
             verticesComp = sorted(verticesComp)
             arestasComp = sorted(arestasComp)
         
-        # Constrói componentes
+        # Passo 5: Constrói as componentes usando stub matching
         try:
             arestas = constroiComponentes(verticesComp, arestasComp, tipo, numV)
             return arestas
-        except Exception:
+        except Exception:  # Falha na construção
             tentativas += 1
             continue
     

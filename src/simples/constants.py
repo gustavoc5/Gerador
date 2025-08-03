@@ -1,53 +1,73 @@
 """
 Constantes compartilhadas para o módulo simples.
+
+Este módulo centraliza todas as constantes utilizadas pelo sistema de geração
+de grafos, facilitando manutenção e garantindo consistência entre diferentes
+partes do código.
 """
 
-# Tipos de grafos suportados
+# =============================================================================
+# TIPOS DE GRAFOS SUPORTADOS
+# =============================================================================
+
+# Mapeamento completo de tipos de grafos
 TIPOS_GRAFOS = {
-    0: "Simples",
-    1: "Digrafo",
-    20: "Multigrafo",
-    21: "Multigrafo-Dirigido",
-    30: "Pseudografo",
-    31: "Pseudografo-Dirigido",
+    0: "Simples",           # Não dirigido, sem laços, sem arestas múltiplas
+    1: "Digrafo",           # Dirigido, sem laços, sem arestas múltiplas
+    20: "Multigrafo",       # Não dirigido, sem laços, com arestas múltiplas
+    21: "Multigrafo-Dirigido", # Dirigido, sem laços, com arestas múltiplas
+    30: "Pseudografo",      # Não dirigido, com laços, com arestas múltiplas
+    31: "Pseudografo-Dirigido", # Dirigido, com laços, com arestas múltiplas
 }
 
-# Tipos de grafos dirigidos
-TIPOS_DIRIGIDOS = [1, 21, 31]
+# Agrupamentos por características
+TIPOS_DIRIGIDOS = [1, 21, 31]      # Grafos com arestas direcionadas
+TIPOS_MULTIGRAFOS = [20, 21, 30, 31]  # Grafos que permitem arestas múltiplas
+TIPOS_PSEUDOGRAFOS = [30, 31]      # Grafos que permitem laços
+TIPOS_SIMPLES = [0, 20, 30]        # Grafos não dirigidos
 
-# Tipos de multigrafos
-TIPOS_MULTIGRAFOS = [20, 21, 30, 31]
+# =============================================================================
+# ESTRATÉGIAS DE GERAÇÃO
+# =============================================================================
 
-# Tipos de pseudografos (com laços)
-TIPOS_PSEUDOGRAFOS = [30, 31]
-
-# Tipos de grafos simples (não dirigidos)
-TIPOS_SIMPLES = [0, 20, 30]
-
-# Estratégias de geração
+# Estratégias para alocação de vértices e arestas
 GERACAO = {
-    0: "Aleatório",
-    1: "Parcialmente Balanceado", 
-    2: "Balanceado"
+    0: "Aleatório",              # Distribuição completamente aleatória
+    1: "Parcialmente Balanceado", # Distribuição semi-aleatória com ordenação
+    2: "Balanceado"              # Distribuição o mais uniforme possível
 }
 
-# Preferências de densidade
+# Preferências de densidade do grafo
 DENSIDADE = {
-    0: "Sem preferência",
-    1: "Esparso (densidade ≤ 0.2)",
-    2: "Denso (densidade ≥ 0.8)"
+    0: "Sem preferência",        # Aceita qualquer densidade
+    1: "Esparso (densidade ≤ 0.2)", # Prefere grafos esparsos
+    2: "Denso (densidade ≥ 0.8)"    # Prefere grafos densos
 }
 
-# Parâmetros padrão
-MAX_TENTATIVAS = 100
-MAX_AMOSTRAS_HOP = 10000
-PESO_MIN_PADRAO = 1
-PESO_MAX_PADRAO = 10
+# =============================================================================
+# PARÂMETROS PADRÃO
+# =============================================================================
 
-# Configurações de teste
-NUM_EXECUCOES_PADRAO = 5
-VERTICES_LISTA_PADRAO = [1000, 5000]
+# Limites de tentativas e amostras
+MAX_TENTATIVAS = 100        # Máximo de tentativas para gerar grafo válido
+MAX_AMOSTRAS_HOP = 10000    # Máximo de amostras para cálculo de distâncias
 
-# Configurações de densidade
-DENSIDADE_ESPARSA_MAX = 0.2
-DENSIDADE_DENSA_MIN = 0.8 
+# Pesos padrão para grafos valorados
+PESO_MIN_PADRAO = 1         # Peso mínimo das arestas
+PESO_MAX_PADRAO = 10        # Peso máximo das arestas
+
+# =============================================================================
+# CONFIGURAÇÕES DE TESTE
+# =============================================================================
+
+# Configurações padrão para execução de testes
+NUM_EXECUCOES_PADRAO = 5    # Número padrão de execuções por configuração
+VERTICES_LISTA_PADRAO = [1000, 5000]  # Tamanhos padrão de vértices para testes
+
+# =============================================================================
+# CONFIGURAÇÕES DE DENSIDADE
+# =============================================================================
+
+# Limites para classificação de densidade
+DENSIDADE_ESPARSA_MAX = 0.2  # Máximo para considerar grafo esparso
+DENSIDADE_DENSA_MIN = 0.8    # Mínimo para considerar grafo denso 

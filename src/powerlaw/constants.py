@@ -1,38 +1,58 @@
 """
 Constantes compartilhadas para o módulo powerlaw.
+
+Este módulo centraliza todas as constantes utilizadas pelo sistema de geração
+de grafos com distribuição power-law, facilitando manutenção e garantindo
+consistência entre diferentes partes do código.
 """
 
-# Tipos de grafos suportados
+# =============================================================================
+# TIPOS DE GRAFOS SUPORTADOS
+# =============================================================================
+
+# Mapeamento completo de tipos de grafos
 TIPOS_GRAFOS = {
-    0: 'Simples',
-    1: 'Digrafo', 
-    20: 'Multigrafo',
-    21: 'Multigrafo-Dirigido',
-    30: 'Pseudografo',
-    31: 'Pseudografo-Dirigido'
+    0: 'Simples',           # Não dirigido, sem laços, sem arestas múltiplas
+    1: 'Digrafo',           # Dirigido, sem laços, sem arestas múltiplas
+    20: 'Multigrafo',       # Não dirigido, sem laços, com arestas múltiplas
+    21: 'Multigrafo-Dirigido', # Dirigido, sem laços, com arestas múltiplas
+    30: 'Pseudografo',      # Não dirigido, com laços, com arestas múltiplas
+    31: 'Pseudografo-Dirigido'  # Dirigido, com laços, com arestas múltiplas
 }
 
-# Tipos de grafos dirigidos
-TIPOS_DIRIGIDOS = [1, 21, 31]
+# Agrupamentos por características
+TIPOS_DIRIGIDOS = [1, 21, 31]      # Grafos com arestas direcionadas
+TIPOS_MULTIGRAFOS = [20, 21, 30, 31]  # Grafos que permitem arestas múltiplas
+TIPOS_PSEUDOGRAFOS = [30, 31]      # Grafos que permitem laços
 
-# Tipos de multigrafos
-TIPOS_MULTIGRAFOS = [20, 21, 30, 31]
+# =============================================================================
+# PARÂMETROS POWER-LAW
+# =============================================================================
 
-# Tipos de pseudografos (com laços)
-TIPOS_PSEUDOGRAFOS = [30, 31]
+# Limites para o expoente gamma da distribuição power-law
+GAMMA_MIN = 2.0    # Expoente mínimo (grafos mais densos)
+GAMMA_MAX = 3.0    # Expoente máximo (grafos mais esparsos)
 
-# Parâmetros padrão
-GAMMA_MIN = 2.0
-GAMMA_MAX = 3.0
-GRAU_MIN_PADRAO = 1
-XMIN_POWERLAW = 2
-KS_THRESHOLD = 0.1
+# Parâmetros de grau
+GRAU_MIN_PADRAO = 1    # Grau mínimo para qualquer vértice
 
-# Configurações de teste
-NUM_EXECUCOES_PADRAO = 5
-VERTICES_LISTA_PADRAO = [1000, 5000]
-MAX_AMOSTRAS_HOP = 10000
+# Parâmetros para análise power-law
+XMIN_POWERLAW = 2      # Valor mínimo para ajuste da distribuição power-law
+KS_THRESHOLD = 0.1     # Limite para teste Kolmogorov-Smirnov (p-value)
 
-# Configurações de visualização
-MAX_NOS_VISUALIZACAO = 300
-TAMANHO_NOS_PEQUENOS = 100 
+# =============================================================================
+# CONFIGURAÇÕES DE TESTE
+# =============================================================================
+
+# Configurações padrão para execução de testes
+NUM_EXECUCOES_PADRAO = 5    # Número padrão de execuções por configuração
+VERTICES_LISTA_PADRAO = [1000, 5000]  # Tamanhos padrão de vértices para testes
+MAX_AMOSTRAS_HOP = 10000    # Máximo de amostras para cálculo de distâncias
+
+# =============================================================================
+# CONFIGURAÇÕES DE VISUALIZAÇÃO
+# =============================================================================
+
+# Limites para visualização de grafos
+MAX_NOS_VISUALIZACAO = 300  # Máximo de nós para visualização completa
+TAMANHO_NOS_PEQUENOS = 100  # Tamanho para considerar grafo "pequeno" 
