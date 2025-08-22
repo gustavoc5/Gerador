@@ -1,140 +1,157 @@
 #!/usr/bin/env python3
 """
-Script para concatenar resultados dos experimentos.
-Organiza os resultados por seed e módulo.
+Script para concatenar resultados de experimentos individuais.
+Organiza resultados por módulo e seed, criando arquivos agregados.
 """
 
 import os
+import sys
 import glob
 import argparse
+from pathlib import Path
 from datetime import datetime
 
-def concatenate_module_results(results_dir, module_name, seeds):
+def concatenate_module_results(main_dir, module_name):
     """Concatena resultados de um módulo específico."""
-    module_dir = os.path.join(results_dir, module_name)
+    module_dir = os.path.join(main_dir, module_name)
+    
     if not os.path.exists(module_dir):
-        print(f"❌ Diretório não encontrado: {module_dir}")
+        print(f"⚠️ Diretório do módulo {module_name} não encontrado: {module_dir}")
         return
     
-    print(f"📁 Concatenando resultados do módulo: {module_name}")
+    print(f"📦 Concatenando resultados do módulo: {module_name}")
     
-    # Para cada seed, concatena todos os arquivos
-    for seed in seeds:
-        seed_dir = os.path.join(module_dir, str(seed))
-        if not os.path.exists(seed_dir):
-            continue
+    # Encontra todos os diretórios de seed
+    seed_dirs = [d for d in os.listdir(module_dir) 
+                if os.path.isdir(os.path.join(module_dir, d))]
+    
+    if not seed_dirs:
+        print(f"⚠️ Nenhum diretório de seed encontrado em: {module_dir}")
+        return
+    
+    # Para cada seed, concatena os arquivos
+    for seed in seed_dirs:
+        seed_path = os.path.join(module_dir, seed)
+        txt_files = glob.glob(os.path.join(seed_path, "*.txt"))
         
-        # Encontra todos os arquivos .txt no diretório da seed
-        files = glob.glob(os.path.join(seed_dir, "*.txt"))
-        if not files:
+        if not txt_files:
+            print(f"⚠️ Nenhum arquivo .txt encontrado para seed {seed}")
             continue
         
         # Arquivo de saída concatenado
-        output_file = os.path.join(results_dir, f"{module_name}_concatenated_{seed}.txt")
+        output_file = os.path.join(main_dir, f"{module_name}_concatenated_{seed}.txt")
         
-        print(f"  🔄 Seed {seed}: {len(files)} arquivos -> {output_file}")
+        print(f"  🌱 Seed {seed}: {len(txt_files)} arquivos -> {output_file}")
         
-        with open(output_file, 'w') as outfile:
-            # Escreve cabeçalho
-            outfile.write(f"# Resultados concatenados - Módulo {module_name}\n")
+        with open(output_file, 'w', encoding='utf-8') as outfile:
+            # Cabeçalho
+            outfile.write(f"# Resultados concatenados do módulo {module_name}\n")
             outfile.write(f"# Seed: {seed}\n")
-            outfile.write(f"# Arquivos: {len(files)}\n")
-            outfile.write(f"# Gerado em: {datetime.now()}\n")
-            outfile.write(f"{'='*60}\n\n")
+            outfile.write(f"# Arquivos: {len(txt_files)}\n")
+            outfile.write(f"# Concatenado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            outfile.write("=" * 80 + "\n\n")
             
             # Concatena cada arquivo
-            for file_path in sorted(files):
-                filename = os.path.basename(file_path)
-                outfile.write(f"# Arquivo: {filename}\n")
-                outfile.write(f"{'='*40}\n")
+            for i, txt_file in enumerate(sorted(txt_files), 1):
+                filename = os.path.basename(txt_file)
+                outfile.write(f"# Arquivo {i}: {filename}\n")
+                outfile.write("-" * 40 + "\n")
                 
                 try:
-                    with open(file_path, 'r') as infile:
+                    with open(txt_file, 'r', encoding='utf-8') as infile:
                         content = infile.read()
                         outfile.write(content)
                         if not content.endswith('\n'):
                             outfile.write('\n')
                 except Exception as e:
-                    outfile.write(f"❌ Erro ao ler arquivo: {e}\n")
+                    outfile.write(f"ERRO ao ler arquivo: {e}\n")
                 
-                outfile.write(f"\n{'='*40}\n\n")
-
-def generate_summary(results_dir, module_name, seeds):
-    """Gera um resumo dos experimentos."""
-    module_dir = os.path.join(results_dir, module_name)
-    if not os.path.exists(module_dir):
-        return
+                outfile.write("\n" + "=" * 80 + "\n\n")
     
-    summary_file = os.path.join(results_dir, f"{module_name}_summary.txt")
+    print(f"✅ Concatenação do módulo {module_name} concluída!")
+
+def generate_summary(main_dir):
+    """Gera um resumo dos experimentos executados."""
+    summary_file = os.path.join(main_dir, "summary_experiments.txt")
     
     print(f"📊 Gerando resumo: {summary_file}")
     
-    with open(summary_file, 'w') as summary:
-        summary.write(f"# Resumo dos Experimentos - Módulo {module_name}\n")
-        summary.write(f"# Gerado em: {datetime.now()}\n")
-        summary.write(f"{'='*60}\n\n")
+    with open(summary_file, 'w', encoding='utf-8') as f:
+        f.write("RESUMO DOS EXPERIMENTOS\n")
+        f.write("=" * 50 + "\n")
+        f.write(f"Gerado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Diretório principal: {main_dir}\n\n")
         
-        total_experiments = 0
-        successful_seeds = 0
-        
-        for seed in seeds:
-            seed_dir = os.path.join(module_dir, str(seed))
-            if not os.path.exists(seed_dir):
+        # Estatísticas por módulo
+        for module in ['simples', 'powerlaw']:
+            module_dir = os.path.join(main_dir, module)
+            if not os.path.exists(module_dir):
                 continue
             
-            files = glob.glob(os.path.join(seed_dir, "*.txt"))
-            if files:
-                successful_seeds += 1
-                total_experiments += len(files)
-                
-                summary.write(f"Seed {seed}:\n")
-                summary.write(f"  Arquivos: {len(files)}\n")
-                
-                # Analisa tamanhos dos arquivos
-                sizes = [os.path.getsize(f) for f in files]
-                summary.write(f"  Tamanho total: {sum(sizes)} bytes\n")
-                summary.write(f"  Tamanho médio: {sum(sizes)/len(sizes):.0f} bytes\n")
-                summary.write(f"  Maior arquivo: {max(sizes)} bytes\n")
-                summary.write(f"  Menor arquivo: {min(sizes)} bytes\n\n")
+            f.write(f"MÓDULO: {module.upper()}\n")
+            f.write("-" * 30 + "\n")
+            
+            seed_dirs = [d for d in os.listdir(module_dir) 
+                        if os.path.isdir(os.path.join(module_dir, d))]
+            
+            total_files = 0
+            for seed in seed_dirs:
+                seed_path = os.path.join(module_dir, seed)
+                txt_files = glob.glob(os.path.join(seed_path, "*.txt"))
+                total_files += len(txt_files)
+                f.write(f"  Seed {seed}: {len(txt_files)} arquivos\n")
+            
+            f.write(f"  Total: {total_files} arquivos\n\n")
         
-        summary.write(f"{'='*60}\n")
-        summary.write(f"Total de seeds com sucesso: {successful_seeds}/{len(seeds)}\n")
-        summary.write(f"Total de experimentos: {total_experiments}\n")
-        summary.write(f"Taxa de sucesso: {(successful_seeds/len(seeds)*100):.1f}%\n")
+        # Arquivos concatenados
+        f.write("ARQUIVOS CONCATENADOS\n")
+        f.write("-" * 30 + "\n")
+        concatenated_files = glob.glob(os.path.join(main_dir, "*_concatenated_*.txt"))
+        for file in sorted(concatenated_files):
+            filename = os.path.basename(file)
+            f.write(f"  {filename}\n")
+        
+        f.write(f"\nTotal de arquivos concatenados: {len(concatenated_files)}\n")
 
 def main():
-    parser = argparse.ArgumentParser(description="Concatena resultados dos experimentos")
-    parser.add_argument("--results_dir", default="results", 
-                       help="Diretório com os resultados")
-    parser.add_argument("--modules", nargs="+", 
-                       default=["simples", "powerlaw"], 
-                       help="Módulos a processar")
-    parser.add_argument("--seeds", nargs="+", type=int,
-                       default=[270001, 341099, 160812, 713978, 705319, 219373, 255486, 135848, 142095, 571618],
-                       help="Seeds a processar")
-    parser.add_argument("--summary", action="store_true",
-                       help="Gera resumo dos experimentos")
+    """Função principal."""
+    parser = argparse.ArgumentParser(description='Concatena resultados de experimentos')
+    parser.add_argument('--main_dir', default='./results',
+                       help='Diretório principal com os resultados')
+    parser.add_argument('--module', choices=['simples', 'powerlaw', 'both'], default='both',
+                       help='Módulo(s) para concatenar')
+    parser.add_argument('--summary', action='store_true',
+                       help='Gera resumo dos experimentos')
     
     args = parser.parse_args()
     
     # Converte para caminho absoluto
-    results_dir = os.path.abspath(args.results_dir)
+    main_dir = os.path.abspath(args.main_dir)
     
-    print(f"🚀 Concatenando resultados")
-    print(f"📁 Diretório: {results_dir}")
-    print(f"📊 Módulos: {args.modules}")
-    print(f"🎲 Seeds: {len(args.seeds)}")
-    print(f"{'='*60}")
+    print(f"🚀 Concatenando resultados...")
+    print(f"📁 Diretório principal: {main_dir}")
+    print(f"📦 Módulo(s): {args.module}")
+    print("=" * 60)
     
-    # Processa cada módulo
-    for module in args.modules:
-        concatenate_module_results(results_dir, module, args.seeds)
-        
-        if args.summary:
-            generate_summary(results_dir, module, args.seeds)
+    # Verifica se o diretório existe
+    if not os.path.exists(main_dir):
+        print(f"❌ Diretório não encontrado: {main_dir}")
+        print("💡 Execute os experimentos primeiro!")
+        return
     
-    print(f"\n✅ Concatenação concluída!")
-    print(f"📁 Resultados em: {results_dir}")
+    # Concatena baseado no módulo escolhido
+    if args.module in ['simples', 'both']:
+        concatenate_module_results(main_dir, 'simples')
+    
+    if args.module in ['powerlaw', 'both']:
+        concatenate_module_results(main_dir, 'powerlaw')
+    
+    # Gera resumo se solicitado
+    if args.summary:
+        generate_summary(main_dir)
+    
+    print("\n✅ Concatenação concluída!")
+    print(f"📁 Resultados em: {main_dir}")
 
 if __name__ == "__main__":
     main() 

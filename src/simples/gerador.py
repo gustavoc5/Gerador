@@ -207,27 +207,109 @@ def constroiComponentes(verticesComp, arestasComp, tipo, numV):
         # Conecta vértices da componente
         for j in range(len(vertices) - 1):
             u, v = vertices[j], vertices[j + 1]
-            if tipo in [0, 20, 30]:  # Grafo simples
+            if tipo in [0, 20, 30]:  # Grafo não dirigido
                 arestas.append((u, v))
-                matriz[u][v] += 1
-                matriz[v][u] += 1
+                if tipo == 0:  # Simples: máximo 1 aresta
+                    matriz[u][v] = 1
+                    matriz[v][u] = 1
+                else:  # Multigrafo/Pseudografo: pode ter múltiplas
+                    matriz[u][v] += 1
+                    matriz[v][u] += 1
             else:  # Grafo dirigido
                 arestas.append((u, v))
-                matriz[u][v] += 1
+                if tipo == 1:  # Digrafo: máximo 1 aresta
+                    matriz[u][v] = 1
+                else:  # Multigrafo-Dirigido/Pseudografo-Dirigido: pode ter múltiplas
+                    matriz[u][v] += 1
         
         # Adiciona arestas extras se necessário
         arestas_necessarias = arestasComp[i] - (len(vertices) - 1)
-        for _ in range(arestas_necessarias):
+        tentativas_aresta = 0
+        arestas_adicionadas = 0
+        
+        # Para pseudografos, garante pelo menos alguns loops
+        loops_adicionados = 0
+        if tipo in TIPOS_PSEUDOGRAFOS:
+            num_loops = min(arestas_necessarias // 3, len(vertices) // 2)  # 1/3 das arestas ou metade dos vértices
+            for _ in range(num_loops):
+                u = random.choice(vertices)
+                if tipo in [0, 20, 30]:  # Grafo não dirigido
+                    arestas.append((u, u))
+                    matriz[u][u] += 1
+                else:  # Grafo dirigido
+                    arestas.append((u, u))
+                    matriz[u][u] += 1
+                loops_adicionados += 1
+            arestas_necessarias -= loops_adicionados
+        
+        while arestas_adicionadas < arestas_necessarias and tentativas_aresta < 1000:
             u = random.choice(vertices)
             v = random.choice(vertices)
+            tentativas_aresta += 1
+            
+            # Verifica se a aresta é válida
             if u != v or tipo in TIPOS_PSEUDOGRAFOS:
-                if tipo in [0, 20, 30]:  # Simples
+                if tipo in [0, 20, 30]:  # Grafo não dirigido
+                    # Para grafos simples, verifica se a aresta já existe
+                    if tipo == 0 and matriz[u][v] > 0:
+                        continue  # Aresta já existe, tenta outra
+                    
                     arestas.append((min(u, v), max(u, v)))
-                    matriz[u][v] += 1
-                    matriz[v][u] += 1
-                else:  # Dirigido
+                    if tipo == 0:  # Simples: máximo 1 aresta
+                        matriz[u][v] = 1
+                        matriz[v][u] = 1
+                    else:  # Multigrafo/Pseudografo: pode ter múltiplas
+                        matriz[u][v] += 1
+                        matriz[v][u] += 1
+                    arestas_adicionadas += 1
+                else:  # Grafo dirigido
+                    # Para digrafos, verifica se a aresta já existe
+                    if tipo == 1 and matriz[u][v] > 0:
+                        continue  # Aresta já existe, tenta outra
+                    
                     arestas.append((u, v))
-                    matriz[u][v] += 1
+                    if tipo == 1:  # Digrafo: máximo 1 aresta
+                        matriz[u][v] = 1
+                    else:  # Multigrafo-Dirigido/Pseudografo-Dirigido: pode ter múltiplas
+                        matriz[u][v] += 1
+                    arestas_adicionadas += 1
+    
+    # Verificação final: garante que pseudografos tenham loops
+    if tipo in TIPOS_PSEUDOGRAFOS:
+        # Verifica se há loops na matriz
+        tem_loops = False
+        for i in range(numV):
+            if matriz[i][i] > 0:
+                tem_loops = True
+                break
+        
+        # Se não há loops, adiciona pelo menos um
+        if not tem_loops:
+            u = random.choice(range(numV))
+            arestas.append((u, u))
+            matriz[u][u] += 1
+    
+    # Verificação final: garante que multigrafos tenham arestas múltiplas
+    if tipo in TIPOS_MULTIGRAFOS and tipo not in TIPOS_PSEUDOGRAFOS:
+        # Verifica se há arestas múltiplas na matriz
+        tem_multiplas = False
+        for i in range(numV):
+            for j in range(numV):
+                if matriz[i][j] > 1:
+                    tem_multiplas = True
+                    break
+            if tem_multiplas:
+                break
+        
+        # Se não há arestas múltiplas, adiciona pelo menos uma
+        if not tem_multiplas:
+            u = random.choice(range(numV))
+            v = random.choice(range(numV))
+            if u != v:  # Não adiciona loop para multigrafos não-pseudografos
+                arestas.append((min(u, v), max(u, v)) if tipo in [0, 20, 30] else (u, v))
+                matriz[u][v] += 1
+                if tipo in [0, 20, 30]:  # Grafo não dirigido
+                    matriz[v][u] += 1
     
     return arestas
 

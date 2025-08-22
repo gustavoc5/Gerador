@@ -1,279 +1,366 @@
-import csv
-import time
+#!/usr/bin/env python3
+"""
+Script de teste para o gerador de grafos simples.
+Gera grafos e calcula métricas, salvando resultados em arquivos .txt detalhados.
+"""
+
+import sys
+import os
 import random
-import math
 import numpy as np
 import networkx as nx
-from networkx.algorithms import community as nx_comm
+import pandas as pd
+from datetime import datetime
+from gerador import geraDataset
+from utils import tipoGrafo, compConexas
+from constants import *
 
-from gerador import geraDataset, verificaAresta
-from utils import (
-    criaMatrizAdjacencias,
-    criaMatrizAdjacenciasValorada,
-    tipoGrafo,
-    compConexas,
-)
-from constants import (
-    TIPOS_GRAFOS, GERACAO, TIPOS_DIRIGIDOS, 
-    NUM_EXECUCOES_PADRAO, VERTICES_LISTA_PADRAO, MAX_AMOSTRAS_HOP
-)
-from exceptions import GrafoGenerationError
-
-
-def matrizParaNetworkX(matriz, tipo):
-    """Converte matriz para NetworkX de forma eficiente."""
-    G = nx.DiGraph() if tipo in TIPOS_DIRIGIDOS else nx.Graph()
-    edges = []
+def matrizParaNetworkX(matriz, dirigido=False):
+    """Converte matriz de adjacência para grafo NetworkX."""
+    G = nx.DiGraph() if dirigido else nx.Graph()
     
-    for u in range(len(matriz)):
-        for v in range(len(matriz)):
-            cell = matriz[u][v]
-            if isinstance(cell, list):
-                edges.extend([(u, v)] * len(cell))
-            elif cell > 0:
-                edges.extend([(u, v)] * cell)
+    for i in range(len(matriz)):
+        G.add_node(i)
+        for j in range(len(matriz[i])):
+            if matriz[i][j] > 0:
+                if isinstance(matriz[i][j], (list, tuple)):
+                    # Múltiplas arestas
+                    for _ in range(len(matriz[i][j])):
+                        G.add_edge(i, j)
+                else:
+                    # Aresta simples ou múltipla
+                    for _ in range(int(matriz[i][j])):
+                        G.add_edge(i, j)
     
-    G.add_edges_from(edges)
     return G
 
-
-def calcula_metricas_basicas(G, dataset):
+def calcula_metricas_basicas(G, tipo_grafo):
     """Calcula métricas básicas do grafo."""
-    graus = [d for n, d in G.degree()]
-    return {
-        'grau_medio': np.mean(graus),
-        'grau_max': max(graus),
-        'num_arestas': len(dataset)
-    }
-
+    metricas = {}
+    
+    # Informações básicas
+    metricas['num_vertices'] = G.number_of_nodes()
+    metricas['num_arestas'] = G.number_of_edges()
+    metricas['tipo_detectado'] = tipo_grafo
+    
+    # Densidade
+    if G.number_of_nodes() > 1:
+        max_arestas = G.number_of_nodes() * (G.number_of_nodes() - 1)
+        if not G.is_directed():
+            max_arestas //= 2
+        metricas['densidade'] = G.number_of_edges() / max_arestas
+    else:
+        metricas['densidade'] = 0.0
+    
+    # Grau médio
+    if G.number_of_nodes() > 0:
+        graus = [d for n, d in G.degree()]
+        metricas['grau_medio'] = np.mean(graus)
+        metricas['grau_max'] = max(graus)
+        metricas['grau_min'] = min(graus)
+    else:
+        metricas['grau_medio'] = metricas['grau_max'] = metricas['grau_min'] = 0
+    
+    # Componentes conexas
+    if G.is_directed():
+        metricas['num_componentes'] = nx.number_strongly_connected_components(G)
+    else:
+        metricas['num_componentes'] = nx.number_connected_components(G)
+    
+    return metricas
 
 def calcula_metricas_centralidade(G):
     """Calcula métricas de centralidade."""
+    metricas = {}
+    
     try:
-        G_und = G.to_undirected() if G.is_directed() else G
+        # PageRank
+        pagerank = nx.pagerank(G, alpha=0.85)
+        metricas['pagerank_medio'] = np.mean(list(pagerank.values()))
+        metricas['pagerank_max'] = max(pagerank.values())
     except:
-        G_und = nx.Graph()
-        G_und.add_edges_from(G.edges())
+        metricas['pagerank_medio'] = metricas['pagerank_max'] = 0.0
     
-    deg_cent = nx.degree_centrality(G_und)
-    pr_cent = nx.pagerank(G, alpha=0.85)
+    try:
+        # Closeness centrality
+        closeness = nx.closeness_centrality(G)
+        metricas['closeness_medio'] = np.mean(list(closeness.values()))
+        metricas['closeness_max'] = max(closeness.values())
+    except:
+        metricas['closeness_medio'] = metricas['closeness_max'] = 0.0
     
-    return {
-        'avg_degree_centrality': np.mean(list(deg_cent.values())),
-        'max_degree_centrality': np.max(list(deg_cent.values())),
-        'avg_pagerank': np.mean(list(pr_cent.values())),
-        'max_pagerank': np.max(list(pr_cent.values()))
-    }
-
+    try:
+        # Betweenness centrality
+        betweenness = nx.betweenness_centrality(G)
+        metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
+        metricas['betweenness_max'] = max(betweenness.values())
+    except:
+        metricas['betweenness_medio'] = metricas['betweenness_max'] = 0.0
+    
+    return metricas
 
 def calcula_metricas_hop(G):
     """Calcula métricas de distância (hop plot)."""
-    try:
-        G_und = G.to_undirected() if G.is_directed() else G
-    except:
-        G_und = nx.Graph()
-        G_und.add_edges_from(G.edges())
+    metricas = {}
     
     try:
-        nodes = list(G_und.nodes())
-        distancias = []
-        for _ in range(min(MAX_AMOSTRAS_HOP, len(nodes) ** 2)):
-            u, v = random.sample(nodes, 2)
-            try:
-                d = nx.shortest_path_length(G_und, source=u, target=v)
-                distancias.append(d)
-            except nx.NetworkXNoPath:
-                continue
-        
-        if distancias:
-            media_hop = np.mean(distancias)
-            diametro_hop = np.max(distancias)
+        # Diâmetro e raio
+        if G.is_directed():
+            # Para grafos dirigidos, converte para não dirigido para calcular distâncias
+            G_undir = G.to_undirected()
         else:
-            media_hop = diametro_hop = -1
+            G_undir = G
+        
+        if nx.is_connected(G_undir):
+            metricas['diametro'] = nx.diameter(G_undir)
+            metricas['raio'] = nx.radius(G_undir)
+            metricas['distancia_media'] = nx.average_shortest_path_length(G_undir)
+        else:
+            metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
     except:
-        media_hop = diametro_hop = -1
+        metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
     
-    return {
-        'media_hop': media_hop,
-        'diametro_hop': diametro_hop
-    }
-
+    return metricas
 
 def calcula_metricas_comunidades(G):
     """Calcula métricas de comunidades."""
-    try:
-        G_und = G.to_undirected() if G.is_directed() else G
-    except:
-        G_und = nx.Graph()
-        G_und.add_edges_from(G.edges())
+    metricas = {}
     
     try:
-        lp_coms = list(nx_comm.label_propagation_communities(G_und))
-        n_lp = len(lp_coms)
+        # Greedy modularity
+        if G.is_directed():
+            G_undir = G.to_undirected()
+        else:
+            G_undir = G
+        
+        comunidades_greedy = list(nx.community.greedy_modularity_communities(G_undir))
+        metricas['num_comunidades_greedy'] = len(comunidades_greedy)
+        metricas['modularidade_greedy'] = nx.community.modularity(G_undir, comunidades_greedy)
     except:
-        n_lp = -1
+        metricas['num_comunidades_greedy'] = 0
+        metricas['modularidade_greedy'] = 0.0
     
-    return {
-        'n_communities_lp': n_lp
-    }
+    try:
+        # Label propagation
+        comunidades_label = list(nx.community.label_propagation_communities(G_undir))
+        metricas['num_comunidades_label'] = len(comunidades_label)
+        metricas['modularidade_label'] = nx.community.modularity(G_undir, comunidades_label)
+    except:
+        metricas['num_comunidades_label'] = 0
+        metricas['modularidade_label'] = 0.0
+    
+    return metricas
 
-
-def calcula_metricas_completas(G, dataset, matriz, tipo, numComp):
+def calcula_metricas_completas(matriz, tipo_grafo):
     """Calcula todas as métricas do grafo."""
-    # Métricas básicas
-    metricas_basicas = calcula_metricas_basicas(G, dataset)
+    # Converte para NetworkX
+    dirigido = tipo_grafo in [1, 3, 5]  # Digrafo, Multigrafo-Dirigido, Pseudografo-Dirigido
+    G = matrizParaNetworkX(matriz, dirigido)
     
-    # Métricas de centralidade
-    metricas_cent = calcula_metricas_centralidade(G)
+    # Calcula métricas
+    metricas = {}
+    metricas.update(calcula_metricas_basicas(G, tipo_grafo))
+    metricas.update(calcula_metricas_centralidade(G))
+    metricas.update(calcula_metricas_hop(G))
+    metricas.update(calcula_metricas_comunidades(G))
     
-    # Métricas de hop
-    metricas_hop = calcula_metricas_hop(G)
+    return metricas
+
+def gera_saida_detalhada(tipo, numV, numA, seed, n, numC, fator, matriz, componentes, metricas):
+    """Gera saída detalhada em formato texto."""
+    saida = []
     
-    # Métricas de comunidades
-    metricas_com = calcula_metricas_comunidades(G)
+    # Cabeçalho com parâmetros
+    saida.append(f"numV: {numV}, numA: {numA}, seed: {seed}, n: {n}")
+    if numC > 0:
+        saida.append(f"numC: {numC}, fator: {fator}")
     
-    # Validações
-    tipo_detectado = tipoGrafo(matriz)
-    correto = tipo_detectado == tipo
-    comp = compConexas(matriz) if numComp > 1 else -1
+    # Tipo de grafo
+    tipo_nome = TIPOS_GRAFOS[tipo]
+    saida.append(f"tipo: {tipo} ({tipo_nome})")
+    saida.append("")
     
-    return {
-        **metricas_basicas,
-        **metricas_cent,
-        **metricas_hop,
-        **metricas_com,
-        'tipo_detectado': tipo_detectado,
-        'tipo_ok': correto,
-        'num_componentes': comp
-    }
-
-
-def testa_simples(n_execucoes=NUM_EXECUCOES_PADRAO, vertices_lista=VERTICES_LISTA_PADRAO, arquivo_csv="resultados_simples.csv"):
-    """Executa bateria de testes para diferentes tipos de grafos."""
-    resultados = []
-
-    for numV in vertices_lista:
-        for tipo in TIPOS_GRAFOS:
-            seed_base = random.randint(100, 9999)
-
-            for execucao in range(n_execucoes):
-                seed = seed_base + execucao
-                numComp = random.choice([0, 1, 2])
-                densPref = random.choice([0, 1, 2])
-
-                try:
-                    minA, maxA = verificaAresta(tipo, numV, numComp)
-                except:
-                    continue
-
-                g_max = (
-                    numV * (numV - 1) / 2 if tipo in [0, 20]
-                    else numV * (numV - 1) if tipo in [1, 21]
-                    else numV * (numV - 1) / 2 + numV if tipo == 30
-                    else numV * (numV - 1) + numV
-                )
-
-                if densPref == 1:
-                    lowA = max(minA, int(0.05 * g_max))
-                    highA = max(minA, int(0.2 * g_max))
-                elif densPref == 2:
-                    lowA = max(minA, int(0.8 * g_max))
-                    highA = min(int(g_max), int(maxA)) if not math.isinf(maxA) else int(g_max)
-                else:
-                    lowA = int(minA)
-                    highA = int(maxA) if not math.isinf(maxA) else int(g_max)
-
-                if highA < lowA:
-                    continue
-
-                numA = random.randint(lowA, highA)
-                n = 1
-                fator = random.choice([0, 1, 2]) if numComp > 1 else 0
-
-                print(f"🔄 Tipo={tipo} Seed={seed} Geração={GERACAO[fator]} Arestas={numA} V={numV}")
-
-                try:
-                    start = time.time()
-                    datasets = geraDataset(tipo, numV, numA, seed, n, numComp, fator)
-                    tempo_geracao = time.time() - start
-
-                    if not datasets:
-                        continue
-
-                    for dataset in datasets:
-                        matriz = criaMatrizAdjacencias(dataset, numV, tipo)
-                        G = matrizParaNetworkX(matriz, tipo)
-                        
-                        # Calcula todas as métricas
-                        metricas = calcula_metricas_completas(G, dataset, matriz, tipo, numComp)
-                        
-                        # Adiciona informações básicas
-                        resultado = {
-                            "vertices": numV,
-                            "tipo": tipo,
-                            "descricao": TIPOS_GRAFOS[tipo],
-                            "execucao": execucao + 1,
-                            "seed": seed,
-                            "num_componentes_esperado": numComp,
-                            "densidade_preferida": densPref,
-                            "tempo_geracao_s": round(tempo_geracao, 4),
-                            **metricas
-                        }
-                        
-                        # Arredonda valores numéricos
-                        for key, value in resultado.items():
-                            if isinstance(value, float) and key != 'tempo_geracao_s':
-                                resultado[key] = round(value, 4)
-                        
-                        resultados.append(resultado)
-
-                except GrafoGenerationError as e:
-                    print(f"❌ Erro de geração: {e}")
-                except Exception as e:
-                    print(f"❌ Erro: {e}")
-
-    if resultados:
-        with open(arquivo_csv, mode='w', newline='', encoding='utf-8') as f:
-            writer = csv.DictWriter(f, fieldnames=resultados[0].keys())
-            writer.writeheader()
-            writer.writerows(resultados)
-        print(f"\n✅ {len(resultados)} execuções finalizadas. Resultados salvos em: {arquivo_csv}")
+    # Matriz de adjacência
+    saida.append("=== MATRIZ DE ADJACÊNCIA ===")
+    for i, linha in enumerate(matriz):
+        saida.append(f"{i}: {linha}")
+    saida.append("")
+    
+    # Lista de arestas por componente
+    saida.append("=== ARESTAS POR COMPONENTE ===")
+    for i, comp in enumerate(componentes):
+        saida.append(f"{i}: {comp}")
+    saida.append("")
+    
+    # Métricas
+    saida.append("=== MÉTRICAS DO GRAFO ===")
+    saida.append(f"Número de vértices: {metricas['num_vertices']}")
+    saida.append(f"Número de arestas: {metricas['num_arestas']}")
+    saida.append(f"Tipo detectado: {metricas['tipo_detectado']} ({TIPOS_GRAFOS[metricas['tipo_detectado']]})")
+    saida.append(f"Densidade: {metricas['densidade']:.6f}")
+    saida.append(f"Grau médio: {metricas['grau_medio']:.2f}")
+    saida.append(f"Grau máximo: {metricas['grau_max']}")
+    saida.append(f"Grau mínimo: {metricas['grau_min']}")
+    saida.append(f"Número de componentes: {metricas['num_componentes']}")
+    saida.append("")
+    
+    saida.append("=== CENTRALIDADE ===")
+    saida.append(f"PageRank médio: {metricas['pagerank_medio']:.6f}")
+    saida.append(f"PageRank máximo: {metricas['pagerank_max']:.6f}")
+    saida.append(f"Closeness médio: {metricas['closeness_medio']:.6f}")
+    saida.append(f"Closeness máximo: {metricas['closeness_max']:.6f}")
+    saida.append(f"Betweenness médio: {metricas['betweenness_medio']:.6f}")
+    saida.append(f"Betweenness máximo: {metricas['betweenness_max']:.6f}")
+    saida.append("")
+    
+    saida.append("=== DISTÂNCIAS ===")
+    if metricas['diametro'] != float('inf'):
+        saida.append(f"Diâmetro: {metricas['diametro']}")
+        saida.append(f"Raio: {metricas['raio']}")
+        saida.append(f"Distância média: {metricas['distancia_media']:.2f}")
     else:
-        print("\n⚠️ Nenhum resultado válido foi gerado.")
+        saida.append("Diâmetro: ∞ (grafo desconexo)")
+        saida.append("Raio: ∞ (grafo desconexo)")
+        saida.append("Distância média: ∞ (grafo desconexo)")
+    saida.append("")
+    
+    saida.append("=== COMUNIDADES ===")
+    saida.append(f"Número de comunidades (Greedy): {metricas['num_comunidades_greedy']}")
+    saida.append(f"Modularidade (Greedy): {metricas['modularidade_greedy']:.6f}")
+    saida.append(f"Número de comunidades (Label): {metricas['num_comunidades_label']}")
+    saida.append(f"Modularidade (Label): {metricas['modularidade_label']:.6f}")
+    saida.append("")
+    
+    # Timestamp
+    saida.append(f"Gerado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    return "\n".join(saida)
 
+def executa_teste(tipo, numV, numA, seed, n=1, numC=0, fator=1.0):
+    """Executa um teste específico e retorna os resultados."""
+    print(f"Executando teste: tipo={tipo}, V={numV}, A={numA}, seed={seed}")
+    
+    try:
+        # Gera o grafo
+        datasets = geraDataset(tipo, numV, numA, seed, n, numC, fator)
+        
+        if not datasets:
+            print(f"ERRO: Falha na geração do grafo")
+            return None
+        
+        # Pega o primeiro dataset
+        arestas = datasets[0]
+        
+        # Cria matriz de adjacência
+        from utils import criaMatrizAdjacencias
+        matriz = criaMatrizAdjacencias(arestas, numV, tipo)
+        
+        # Cria componentes (lista de arestas por componente)
+        componentes = [arestas]  # Para simplicidade, assume uma componente
+        
+        # Detecta o tipo real
+        tipo_detectado = tipoGrafo(matriz)
+        
+        # Calcula métricas
+        metricas = calcula_metricas_completas(matriz, tipo_detectado)
+        
+        # Gera saída detalhada
+        saida = gera_saida_detalhada(tipo, numV, numA, seed, n, numC, fator, 
+                                   matriz, componentes, metricas)
+        
+        return {
+            'tipo': tipo,
+            'numV': numV,
+            'numA': numA,
+            'seed': seed,
+            'n': n,
+            'numC': numC,
+            'fator': fator,
+            'tipo_detectado': tipo_detectado,
+            'matriz': matriz,
+            'componentes': componentes,
+            'metricas': metricas,
+            'saida': saida
+        }
+        
+    except Exception as e:
+        print(f"ERRO: {e}")
+        return None
+
+def main():
+    """Função principal."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Teste do gerador de grafos simples')
+    parser.add_argument('--n_execucoes', type=int, default=NUM_EXECUCOES_PADRAO,
+                       help='Número de execuções')
+    parser.add_argument('--vertices_lista', nargs='+', type=int, 
+                       default=VERTICES_LISTA_PADRAO,
+                       help='Lista de números de vértices')
+    parser.add_argument('--output_csv', default='resultados_simples.csv',
+                       help='Arquivo CSV de saída')
+    parser.add_argument('--output_txt', default='resultado_simples.txt',
+                       help='Arquivo TXT de saída detalhada')
+    parser.add_argument('--seed', type=int, default=None,
+                       help='Seed específico para teste único')
+    
+    args = parser.parse_args()
+    
+    # Se seed específico fornecido, executa teste único
+    if args.seed is not None:
+        print(f"Executando teste único com seed {args.seed}")
+        resultado = executa_teste(0, 10, 15, args.seed)
+        if resultado:
+            print(resultado['saida'])
+            # Salva em arquivo
+            with open(args.output_txt, 'w', encoding='utf-8') as f:
+                f.write(resultado['saida'])
+            print(f"Resultado salvo em: {args.output_txt}")
+        return
+    
+    # Execução normal com múltiplos testes
+    resultados = []
+    
+    for numV in args.vertices_lista:
+        for execucao in range(args.n_execucoes):
+            seed = random.randint(1, 10000)
+            
+            # Calcula número de arestas baseado na densidade
+            max_arestas = numV * (numV - 1) // 2
+            numA = random.randint(max(1, numV-1), max_arestas)
+            
+            # Testa todos os tipos de grafo
+            for tipo in range(len(TIPOS_GRAFOS)):
+                resultado = executa_teste(tipo, numV, numA, seed)
+                if resultado:
+                    resultados.append(resultado)
+    
+    # Salva resultados em CSV
+    if resultados:
+        df = pd.DataFrame([{
+            'tipo': r['tipo'],
+            'numV': r['numV'],
+            'numA': r['numA'],
+            'seed': r['seed'],
+            'tipo_detectado': r['tipo_detectado'],
+            'densidade': r['metricas']['densidade'],
+            'grau_medio': r['metricas']['grau_medio'],
+            'num_componentes': r['metricas']['num_componentes'],
+            'pagerank_medio': r['metricas']['pagerank_medio'],
+            'closeness_medio': r['metricas']['closeness_medio'],
+            'modularidade_greedy': r['metricas']['modularidade_greedy']
+        } for r in resultados])
+        
+        df.to_csv(args.output_csv, index=False)
+        print(f"Resultados salvos em: {args.output_csv}")
+        
+        # Salva último resultado detalhado em TXT
+        if resultados:
+            with open(args.output_txt, 'w', encoding='utf-8') as f:
+                f.write(resultados[-1]['saida'])
+            print(f"Resultado detalhado salvo em: {args.output_txt}")
+    
+    print(f"Total de testes executados: {len(resultados)}")
 
 if __name__ == "__main__":
-    import sys
-    import time
-    
-    # Parâmetros padrão
-    execucoes = 3
-    vertices = [100, 200]
-    arquivo_csv = f"resultados_simples_{time.strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    # Processa argumentos de linha de comando
-    if len(sys.argv) > 1:
-        try:
-            execucoes = int(sys.argv[1])
-        except ValueError:
-            print(f"❌ Erro: Número de execuções deve ser um inteiro. Usando padrão: {execucoes}")
-    
-    if len(sys.argv) > 2:
-        try:
-            vertices = [int(x.strip()) for x in sys.argv[2].split(',')]
-        except ValueError:
-            print(f"❌ Erro: Lista de vértices deve ser números separados por vírgula. Usando padrão: {vertices}")
-    
-    if len(sys.argv) > 3:
-        arquivo_csv = sys.argv[3]
-    
-    # Exibe configuração
-    print(f"🚀 Configuração de Teste:")
-    print(f"   Execuções por tipo: {execucoes}")
-    print(f"   Vértices: {vertices}")
-    print(f"   Arquivo de saída: {arquivo_csv}")
-    print(f"   Total estimado: {execucoes * len(vertices) * len(TIPOS_GRAFOS)} testes")
-    print(f"   {'='*50}")
-    
-    # Executa os testes
-    testa_simples(n_execucoes=execucoes, vertices_lista=vertices, arquivo_csv=arquivo_csv)
+    main()

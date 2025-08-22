@@ -1,166 +1,135 @@
 #!/bin/bash
 
-# Configurações principais
-MAIN_DIR="$(pwd)"
-SIMPLES_EXE="$MAIN_DIR/simples/test_simples.py"
-POWERLAW_EXE="$MAIN_DIR/powerlaw/test_pwl.py"
-RESULTS_DIR="$MAIN_DIR/results"
+# Script para gerar comandos de experimentos paralelos
+# Baseado no exemplo fornecido pelo usuário
 
-# Seeds para os experimentos (mesmas do exemplo)
-SEEDS=(270001 341099 160812 713978 705319 219373 255486 135848 142095 571618
-2199149535 4178555405 2827217920 59891126 3373722980 2876174150 2287038545
-3681872705 1896279216 3550610394 537193474 3500110090 2694679745 3512663495
-3082165489 3077898063 464010461 1981280707 1053668570 3538661238)
+# Configurações
+MAIN_DIR="/home/user/projects/graph_generation/results"
+SEEDS=(123 456 789 101 202 303 404 505)
+SIZES=(10 20 50 100)
+EXECUCOES=1
 
-# Tamanhos dos grafos
-SIZES=(100 500 1000 5000)
-
-# Número de execuções por configuração
-EXECUCOES=5
-
-# Módulo a executar (simples, powerlaw, ou both)
-MODULE="both"
-
-# Função para gerar experimentos do módulo simples
+# Função para gerar comandos simples
 generate_simples() {
-    echo "# Experimentos do módulo Simples"
+    echo "# Comandos para módulo simples"
     echo "# Gerado em: $(date)"
-    echo "# Total de experimentos: $(( ${#SEEDS[@]} * ${#SIZES[@]} * EXECUCOES ))"
     echo ""
     
-    for seed in "${SEEDS[@]}"
-    do
-        for size in "${SIZES[@]}"
-        do
-            for execucao in $(seq 1 $EXECUCOES)
-            do
+    for seed in "${SEEDS[@]}"; do
+        for size in "${SIZES[@]}"; do
+            for exec in $(seq 1 $EXECUCOES); do
                 # Cria diretório baseado na seed
-                results="$RESULTS_DIR/simples/$seed"
-                if [ ! -e "$results" ]
-                then
-                    echo "mkdir -p $results"
-                fi
+                echo "mkdir -p $MAIN_DIR/simples/$seed"
                 
-                # Gera comando com saída única
-                echo "python $SIMPLES_EXE 1 $size &> $results/size${size}_exec${execucao}.txt"
+                # Comando de execução
+                echo "python src/simples/test_simples.py --seed $seed --vertices_lista $size &> $MAIN_DIR/simples/$seed/size${size}_exec${exec}.txt"
+                echo ""
             done
         done
     done
 }
 
-# Função para gerar experimentos do módulo powerlaw
+# Função para gerar comandos powerlaw
 generate_powerlaw() {
-    echo "# Experimentos do módulo Power-Law"
+    echo "# Comandos para módulo powerlaw"
     echo "# Gerado em: $(date)"
-    echo "# Total de experimentos: $(( ${#SEEDS[@]} * ${#SIZES[@]} * EXECUCOES ))"
     echo ""
     
-    for seed in "${SEEDS[@]}"
-    do
-        for size in "${SIZES[@]}"
-        do
-            for execucao in $(seq 1 $EXECUCOES)
-            do
+    for seed in "${SEEDS[@]}"; do
+        for size in "${SIZES[@]}"; do
+            for exec in $(seq 1 $EXECUCOES); do
                 # Cria diretório baseado na seed
-                results="$RESULTS_DIR/powerlaw/$seed"
-                if [ ! -e "$results" ]
-                then
-                    echo "mkdir -p $results"
-                fi
+                echo "mkdir -p $MAIN_DIR/powerlaw/$seed"
                 
-                # Gera comando com saída única
-                echo "python $POWERLAW_EXE 1 $size &> $results/size${size}_exec${execucao}.txt"
+                # Comando de execução
+                echo "python src/powerlaw/test_pwl.py --seed $seed --vertices_lista $size &> $MAIN_DIR/powerlaw/$seed/size${size}_exec${exec}.txt"
+                echo ""
             done
         done
     done
 }
 
-# Função para gerar experimentos de ambos os módulos
-generate_both() {
-    echo "# Experimentos dos módulos Simples e Power-Law"
+# Função para gerar comandos combinados
+generate_combined() {
+    echo "# Comandos para ambos os módulos"
     echo "# Gerado em: $(date)"
-    echo "# Total de experimentos: $(( ${#SEEDS[@]} * ${#SIZES[@]} * EXECUCOES * 2 ))"
     echo ""
     
-    for seed in "${SEEDS[@]}"
-    do
-        for size in "${SIZES[@]}"
-        do
-            for execucao in $(seq 1 $EXECUCOES)
-            do
-                # Diretórios baseados na seed
-                simples_results="$RESULTS_DIR/simples/$seed"
-                powerlaw_results="$RESULTS_DIR/powerlaw/$seed"
+    for seed in "${SEEDS[@]}"; do
+        for size in "${SIZES[@]}"; do
+            for exec in $(seq 1 $EXECUCOES); do
+                # Cria diretórios baseados na seed
+                echo "mkdir -p $MAIN_DIR/simples/$seed"
+                echo "mkdir -p $MAIN_DIR/powerlaw/$seed"
                 
-                # Cria diretórios se não existirem
-                if [ ! -e "$simples_results" ]
-                then
-                    echo "mkdir -p $simples_results"
-                fi
-                if [ ! -e "$powerlaw_results" ]
-                then
-                    echo "mkdir -p $powerlaw_results"
-                fi
-                
-                # Comandos para ambos os módulos
-                echo "python $SIMPLES_EXE 1 $size &> $simples_results/size${size}_exec${execucao}.txt"
-                echo "python $POWERLAW_EXE 1 $size &> $powerlaw_results/size${size}_exec${execucao}.txt"
+                # Comandos de execução
+                echo "python src/simples/test_simples.py --seed $seed --vertices_lista $size &> $MAIN_DIR/simples/$seed/size${size}_exec${exec}.txt"
+                echo "python src/powerlaw/test_pwl.py --seed $seed --vertices_lista $size &> $MAIN_DIR/powerlaw/$seed/size${size}_exec${exec}.txt"
+                echo ""
             done
         done
     done
-}
-
-# Função para concatenar resultados
-concatenate_results() {
-    echo "# Script para concatenar resultados"
-    echo "# Gerado em: $(date)"
-    echo ""
-    
-    echo "echo 'Concatenando resultados do módulo Simples...'"
-    echo "for seed in ${SEEDS[@]}; do"
-    echo "    if [ -d \"$RESULTS_DIR/simples/\$seed\" ]; then"
-    echo "        cat $RESULTS_DIR/simples/\$seed/*.txt > $RESULTS_DIR/simples_concatenated_\$seed.txt"
-    echo "    fi"
-    echo "done"
-    echo ""
-    
-    echo "echo 'Concatenando resultados do módulo Power-Law...'"
-    echo "for seed in ${SEEDS[@]}; do"
-    echo "    if [ -d \"$RESULTS_DIR/powerlaw/\$seed\" ]; then"
-    echo "        cat $RESULTS_DIR/powerlaw/\$seed/*.txt > $RESULTS_DIR/powerlaw_concatenated_\$seed.txt"
-    echo "    fi"
-    echo "done"
-    echo ""
-    
-    echo "echo 'Concatenação concluída!'"
 }
 
 # Função principal
 main() {
-    case $MODULE in
+    local module=${1:-"both"}
+    local output_file=${2:-"experiments_$(date +%Y%m%d_%H%M%S).sh"}
+    
+    echo "🚀 Gerando experimentos para módulo: $module"
+    echo "📁 Diretório principal: $MAIN_DIR"
+    echo "🌱 Seeds: ${SEEDS[*]}"
+    echo "📊 Tamanhos: ${SIZES[*]}"
+    echo "🔄 Execuções: $EXECUCOES"
+    echo "📄 Arquivo de saída: $output_file"
+    echo ""
+    
+    # Calcula total de experimentos
+    local total_experiments=$((${#SEEDS[@]} * ${#SIZES[@]} * EXECUCOES))
+    if [ "$module" = "both" ]; then
+        total_experiments=$((total_experiments * 2))
+    fi
+    
+    echo "🎯 Total de experimentos: $total_experiments"
+    echo "============================================================"
+    
+    # Gera comandos baseado no módulo
+    case $module in
         "simples")
-            generate_simples
+            generate_simples > "$output_file"
             ;;
         "powerlaw")
-            generate_powerlaw
+            generate_powerlaw > "$output_file"
             ;;
-        "both")
-            generate_both
-            ;;
-        *)
-            echo "Módulo inválido: $MODULE"
-            echo "Use: simples, powerlaw, ou both"
-            exit 1
+        "both"|*)
+            generate_combined > "$output_file"
             ;;
     esac
+    
+    # Torna o arquivo executável
+    chmod +x "$output_file"
+    
+    echo "✅ Script gerado com sucesso: $output_file"
+    echo "📋 Para executar: bash $output_file"
+    echo "🔄 Para executar em paralelo: parallel -j <num_cores> < $output_file"
 }
 
+# Verifica argumentos
+if [ $# -eq 0 ]; then
+    echo "Uso: $0 [simples|powerlaw|both] [arquivo_saida]"
+    echo ""
+    echo "Exemplos:"
+    echo "  $0 simples"
+    echo "  $0 powerlaw"
+    echo "  $0 both experiments.sh"
+    echo ""
+    echo "Configurações atuais:"
+    echo "  MAIN_DIR: $MAIN_DIR"
+    echo "  SEEDS: ${SEEDS[*]}"
+    echo "  SIZES: ${SIZES[*]}"
+    echo "  EXECUCOES: $EXECUCOES"
+    exit 1
+fi
+
 # Executa função principal
-main
-
-# Gera script de concatenação separado
-concatenate_results > concatenate_results.sh
-chmod +x concatenate_results.sh
-
-echo "# Script de concatenação gerado: concatenate_results.sh"
-echo "# Para executar: bash concatenate_results.sh" 
+main "$@" 

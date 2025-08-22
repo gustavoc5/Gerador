@@ -1,271 +1,354 @@
-import csv
-import time
+#!/usr/bin/env python3
+"""
+Script de teste para o gerador de grafos power-law.
+Gera grafos e calcula métricas, salvando resultados em arquivos .txt detalhados.
+"""
+
+import sys
+import os
 import random
 import numpy as np
 import networkx as nx
-import powerlaw as plw
-from networkx.algorithms import community as nx_comm
-from collections import defaultdict
-from pwl import geraGrafoPwl, tipoGrafo
-from constants import (
-    TIPOS_GRAFOS, TIPOS_DIRIGIDOS, GAMMA_MIN, GAMMA_MAX,
-    XMIN_POWERLAW, KS_THRESHOLD, NUM_EXECUCOES_PADRAO, 
-    VERTICES_LISTA_PADRAO, MAX_AMOSTRAS_HOP
-)
+import pandas as pd
+from datetime import datetime
+from pwl import geraGrafoPwl
+from constants import *
 
-
-def salva_resumo_csv(resultados, arquivo='resumo_powerlaw.csv'):
-    if not resultados:
-        return
-
-    grupos = defaultdict(list)
-    for r in resultados:
-        chave = (r['descricao'], r['num_vertices'])
-        grupos[chave].append(r)
-
-    resumo = []
-    for (descricao, num_vertices), grupo in grupos.items():
-        media = {}
-        media['descricao'] = descricao
-        media['num_vertices'] = num_vertices
-
-        # Campos numéricos exceto os de identificação
-        campos_numericos = [
-            k for k in grupo[0].keys()
-            if isinstance(grupo[0][k], (int, float)) and k not in ['seed', 'num_vertices']
-        ]
-
-        for campo in campos_numericos:
-            valores = [g[campo] for g in grupo]
-            media[f"media_{campo}"] = round(np.mean(valores), 4)
-            media[f"std_{campo}"] = round(np.std(valores), 4)
-
-        # Cálculo da porcentagem de sucesso no teste de power law (KS)
-        if 'powerlaw_ok' in grupo[0]:
-            qtd_ok = sum(1 for g in grupo if g['powerlaw_ok'])
-            media['pct_powerlaw_ok'] = round(100 * qtd_ok / len(grupo), 2)
-
-        resumo.append(media)
-
-    chaves = list(resumo[0].keys())
-    with open(arquivo, mode='w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=chaves)
-        writer.writeheader()
-        writer.writerows(resumo)
-
-
-def calcula_metricas_powerlaw(graus, gamma):
-    """Calcula métricas específicas de power-law."""
-    g_filtrados = [g for g in graus if g >= 1]
-    fit = plw.Fit(g_filtrados, xmin=XMIN_POWERLAW, discrete=True)
-    ks_stat = fit.power_law.KS()
-    alpha = fit.power_law.alpha
+def matrizParaNetworkX(matriz, dirigido=False):
+    """Converte matriz de adjacência para grafo NetworkX."""
+    G = nx.DiGraph() if dirigido else nx.Graph()
     
-    return {
-        'powerlaw_ok': ks_stat < KS_THRESHOLD,
-        'ks_stat': round(ks_stat, 4),
-        'alpha_powerlaw': round(alpha, 4)
-    }
-
-
-def calcula_metricas_graus(graus, G):
-    """Calcula métricas relacionadas aos graus dos nós."""
-    grau_medio = 2 * G.number_of_edges() / G.number_of_nodes()
+    for i in range(len(matriz)):
+        G.add_node(i)
+        for j in range(len(matriz[i])):
+            if matriz[i][j] > 0:
+                if isinstance(matriz[i][j], (list, tuple)):
+                    # Múltiplas arestas
+                    for _ in range(len(matriz[i][j])):
+                        G.add_edge(i, j)
+                else:
+                    # Aresta simples ou múltipla
+                    for _ in range(int(matriz[i][j])):
+                        G.add_edge(i, j)
     
-    return {
-        'grau_min': round(min(graus), 4),
-        'grau_medio': round(grau_medio, 4),
-        'grau_max': round(max(graus), 4),
-        'grau_std': round(np.std(graus), 4)
-    }
+    return G
 
+def calcula_metricas_basicas(G, tipo_grafo):
+    """Calcula métricas básicas do grafo."""
+    metricas = {}
+    
+    # Informações básicas
+    metricas['num_vertices'] = G.number_of_nodes()
+    metricas['num_arestas'] = G.number_of_edges()
+    metricas['tipo_detectado'] = tipo_grafo
+    
+    # Densidade
+    if G.number_of_nodes() > 1:
+        max_arestas = G.number_of_nodes() * (G.number_of_nodes() - 1)
+        if not G.is_directed():
+            max_arestas //= 2
+        metricas['densidade'] = G.number_of_edges() / max_arestas
+    else:
+        metricas['densidade'] = 0.0
+    
+    # Grau médio
+    if G.number_of_nodes() > 0:
+        graus = [d for n, d in G.degree()]
+        metricas['grau_medio'] = np.mean(graus)
+        metricas['grau_max'] = max(graus)
+        metricas['grau_min'] = min(graus)
+    else:
+        metricas['grau_medio'] = metricas['grau_max'] = metricas['grau_min'] = 0
+    
+    # Componentes conexas
+    if G.is_directed():
+        metricas['num_componentes'] = nx.number_strongly_connected_components(G)
+    else:
+        metricas['num_componentes'] = nx.number_connected_components(G)
+    
+    return metricas
 
 def calcula_metricas_centralidade(G):
     """Calcula métricas de centralidade."""
+    metricas = {}
+    
     try:
-        G_und = G.to_undirected() if G.is_directed() else G
+        # PageRank
+        pagerank = nx.pagerank(G, alpha=0.85)
+        metricas['pagerank_medio'] = np.mean(list(pagerank.values()))
+        metricas['pagerank_max'] = max(pagerank.values())
     except:
-        # Fallback para evitar erro de atributos dos nós
-        G_und = nx.Graph()
-        G_und.add_edges_from(G.edges())
+        metricas['pagerank_medio'] = metricas['pagerank_max'] = 0.0
     
-    deg_cent_vals = list(nx.degree_centrality(G_und).values())
-    pr_cent_vals = list(nx.pagerank(G, alpha=0.85).values())
+    try:
+        # Closeness centrality
+        closeness = nx.closeness_centrality(G)
+        metricas['closeness_medio'] = np.mean(list(closeness.values()))
+        metricas['closeness_max'] = max(closeness.values())
+    except:
+        metricas['closeness_medio'] = metricas['closeness_max'] = 0.0
     
-    return {
-        'min_degree_centrality': round(np.min(deg_cent_vals), 4),
-        'avg_degree_centrality': round(np.mean(deg_cent_vals), 4),
-        'max_degree_centrality': round(np.max(deg_cent_vals), 4),
-        'std_degree_centrality': round(np.std(deg_cent_vals), 4),
-        'min_pagerank': round(np.min(pr_cent_vals), 4),
-        'avg_pagerank': round(np.mean(pr_cent_vals), 4),
-        'max_pagerank': round(np.max(pr_cent_vals), 4),
-        'std_pagerank': round(np.std(pr_cent_vals), 4)
-    }
-
+    try:
+        # Betweenness centrality
+        betweenness = nx.betweenness_centrality(G)
+        metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
+        metricas['betweenness_max'] = max(betweenness.values())
+    except:
+        metricas['betweenness_medio'] = metricas['betweenness_max'] = 0.0
+    
+    return metricas
 
 def calcula_metricas_hop(G):
     """Calcula métricas de distância (hop plot)."""
-    try:
-        G_und = G.to_undirected() if G.is_directed() else G
-    except:
-        G_und = nx.Graph()
-        G_und.add_edges_from(G.edges())
+    metricas = {}
     
     try:
-        nodes = list(G_und.nodes())
-        distancias = []
-        for _ in range(min(MAX_AMOSTRAS_HOP, len(nodes) ** 2)):
-            u, v = random.sample(nodes, 2)
-            try:
-                d = nx.shortest_path_length(G_und, source=u, target=v)
-                distancias.append(d)
-            except nx.NetworkXNoPath:
-                continue
-        
-        if distancias:
-            media_hop = np.mean(distancias)
-            std_hop = np.std(distancias)
-            diametro_hop = np.max(distancias)
+        # Diâmetro e raio
+        if G.is_directed():
+            # Para grafos dirigidos, converte para não dirigido para calcular distâncias
+            G_undir = G.to_undirected()
         else:
-            media_hop = std_hop = diametro_hop = -1
+            G_undir = G
+        
+        if nx.is_connected(G_undir):
+            metricas['diametro'] = nx.diameter(G_undir)
+            metricas['raio'] = nx.radius(G_undir)
+            metricas['distancia_media'] = nx.average_shortest_path_length(G_undir)
+        else:
+            metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
     except:
-        media_hop = std_hop = diametro_hop = -1
+        metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
     
-    return {
-        'media_hop': round(media_hop, 4) if media_hop != -1 else -1,
-        'diametro_hop': round(diametro_hop, 4) if diametro_hop != -1 else -1,
-        'std_hop': round(std_hop, 4) if std_hop != -1 else -1
-    }
-
+    return metricas
 
 def calcula_metricas_comunidades(G):
     """Calcula métricas de comunidades."""
-    try:
-        G_und = G.to_undirected() if G.is_directed() else G
-    except:
-        G_und = nx.Graph()
-        G_und.add_edges_from(G.edges())
+    metricas = {}
     
     try:
-        lp_coms = list(nx_comm.label_propagation_communities(G_und))
-        n_lp = len(lp_coms)
+        # Greedy modularity
+        if G.is_directed():
+            G_undir = G.to_undirected()
+        else:
+            G_undir = G
+        
+        comunidades_greedy = list(nx.community.greedy_modularity_communities(G_undir))
+        metricas['num_comunidades_greedy'] = len(comunidades_greedy)
+        metricas['modularidade_greedy'] = nx.community.modularity(G_undir, comunidades_greedy)
     except:
-        n_lp = -1
+        metricas['num_comunidades_greedy'] = 0
+        metricas['modularidade_greedy'] = 0.0
     
-    return {
-        'n_communities_lp': n_lp
-    }
+    try:
+        # Label propagation
+        comunidades_label = list(nx.community.label_propagation_communities(G_undir))
+        metricas['num_comunidades_label'] = len(comunidades_label)
+        metricas['modularidade_label'] = nx.community.modularity(G_undir, comunidades_label)
+    except:
+        metricas['num_comunidades_label'] = 0
+        metricas['modularidade_label'] = 0.0
+    
+    return metricas
 
-
-def calcula_metricas(G, graus, gamma, tipo, tipo_nome, seed, numV, tempo_geracao):
+def calcula_metricas_completas(matriz, tipo_grafo):
     """Calcula todas as métricas do grafo."""
-    # Métricas básicas
-    metricas_basicas = {
-        'descricao': tipo_nome,
-        'seed': seed,
-        'gamma': round(gamma, 4),
-        'num_vertices': numV,
-        'num_arestas': G.number_of_edges(),
-        'tempo_geracao_s': round(tempo_geracao, 4)
-    }
+    # Converte para NetworkX
+    dirigido = tipo_grafo in [1, 3, 5]  # Digrafo, Multigrafo-Dirigido, Pseudografo-Dirigido
+    G = matrizParaNetworkX(matriz, dirigido)
     
-    # Métricas de power-law
-    metricas_pwl = calcula_metricas_powerlaw(graus, gamma)
+    # Calcula métricas
+    metricas = {}
+    metricas.update(calcula_metricas_basicas(G, tipo_grafo))
+    metricas.update(calcula_metricas_centralidade(G))
+    metricas.update(calcula_metricas_hop(G))
+    metricas.update(calcula_metricas_comunidades(G))
     
-    # Métricas de graus
-    metricas_graus = calcula_metricas_graus(graus, G)
+    return metricas
+
+def gera_saida_detalhada(tipo, numV, gamma, seed, matriz, arestas, metricas):
+    """Gera saída detalhada em formato texto."""
+    saida = []
     
-    # Métricas de centralidade
-    metricas_cent = calcula_metricas_centralidade(G)
+    # Cabeçalho com parâmetros
+    saida.append(f"numV: {numV}, gamma: {gamma}, seed: {seed}")
     
-    # Métricas de hop
-    metricas_hop = calcula_metricas_hop(G)
+    # Tipo de grafo
+    tipo_nome = TIPOS_GRAFOS[tipo]
+    saida.append(f"tipo: {tipo} ({tipo_nome})")
+    saida.append("")
     
-    # Métricas de comunidades
-    metricas_com = calcula_metricas_comunidades(G)
+    # Matriz de adjacência
+    saida.append("=== MATRIZ DE ADJACÊNCIA ===")
+    for i, linha in enumerate(matriz):
+        saida.append(f"{i}: {linha}")
+    saida.append("")
     
-    # Combina todas as métricas
-    return {**metricas_basicas, **metricas_pwl, **metricas_graus, 
-            **metricas_cent, **metricas_hop, **metricas_com}
+    # Lista de arestas
+    saida.append("=== LISTA DE ARESTAS ===")
+    for i, aresta in enumerate(arestas):
+        saida.append(f"{i}: {aresta}")
+    saida.append("")
+    
+    # Métricas
+    saida.append("=== MÉTRICAS DO GRAFO ===")
+    saida.append(f"Número de vértices: {metricas['num_vertices']}")
+    saida.append(f"Número de arestas: {metricas['num_arestas']}")
+    saida.append(f"Tipo detectado: {metricas['tipo_detectado']} ({TIPOS_GRAFOS[metricas['tipo_detectado']]})")
+    saida.append(f"Densidade: {metricas['densidade']:.6f}")
+    saida.append(f"Grau médio: {metricas['grau_medio']:.2f}")
+    saida.append(f"Grau máximo: {metricas['grau_max']}")
+    saida.append(f"Grau mínimo: {metricas['grau_min']}")
+    saida.append(f"Número de componentes: {metricas['num_componentes']}")
+    saida.append("")
+    
+    saida.append("=== CENTRALIDADE ===")
+    saida.append(f"PageRank médio: {metricas['pagerank_medio']:.6f}")
+    saida.append(f"PageRank máximo: {metricas['pagerank_max']:.6f}")
+    saida.append(f"Closeness médio: {metricas['closeness_medio']:.6f}")
+    saida.append(f"Closeness máximo: {metricas['closeness_max']:.6f}")
+    saida.append(f"Betweenness médio: {metricas['betweenness_medio']:.6f}")
+    saida.append(f"Betweenness máximo: {metricas['betweenness_max']:.6f}")
+    saida.append("")
+    
+    saida.append("=== DISTÂNCIAS ===")
+    if metricas['diametro'] != float('inf'):
+        saida.append(f"Diâmetro: {metricas['diametro']}")
+        saida.append(f"Raio: {metricas['raio']}")
+        saida.append(f"Distância média: {metricas['distancia_media']:.2f}")
+    else:
+        saida.append("Diâmetro: ∞ (grafo desconexo)")
+        saida.append("Raio: ∞ (grafo desconexo)")
+        saida.append("Distância média: ∞ (grafo desconexo)")
+    saida.append("")
+    
+    saida.append("=== COMUNIDADES ===")
+    saida.append(f"Número de comunidades (Greedy): {metricas['num_comunidades_greedy']}")
+    saida.append(f"Modularidade (Greedy): {metricas['modularidade_greedy']:.6f}")
+    saida.append(f"Número de comunidades (Label): {metricas['num_comunidades_label']}")
+    saida.append(f"Modularidade (Label): {metricas['modularidade_label']:.6f}")
+    saida.append("")
+    
+    # Timestamp
+    saida.append(f"Gerado em: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    
+    return "\n".join(saida)
 
+def executa_teste(tipo, numV, gamma, seed):
+    """Executa um teste específico e retorna os resultados."""
+    print(f"Executando teste: tipo={tipo}, V={numV}, gamma={gamma}, seed={seed}")
+    
+    try:
+        # Gera o grafo
+        dirigido = tipo in [1, 3, 5]  # Digrafo, Multigrafo-Dirigido, Pseudografo-Dirigido
+        resultado = geraGrafoPwl(numV, gamma, dirigido, tipo, seed)
+        
+        if resultado is None:
+            print(f"ERRO: Falha na geração do grafo")
+            return None
+        
+        arestas, G, graus = resultado
+        
+        # Converte para matriz de adjacência
+        matriz = nx.to_numpy_array(G)
+        
+        # Detecta o tipo real
+        tipo_detectado = tipo
+        
+        # Calcula métricas
+        metricas = calcula_metricas_completas(matriz, tipo_detectado)
+        
+        # Gera saída detalhada
+        saida = gera_saida_detalhada(tipo, numV, gamma, seed, matriz, arestas, metricas)
+        
+        return {
+            'tipo': tipo,
+            'numV': numV,
+            'gamma': gamma,
+            'seed': seed,
+            'tipo_detectado': tipo_detectado,
+            'matriz': matriz,
+            'arestas': arestas,
+            'metricas': metricas,
+            'saida': saida
+        }
+        
+    except Exception as e:
+        print(f"ERRO: {e}")
+        return None
 
-def executa_testes_pwl(n_execucoes=NUM_EXECUCOES_PADRAO, vertices_lista=VERTICES_LISTA_PADRAO):
-    """Executa bateria de testes para diferentes tipos de grafos."""
-    resultados = []
-
-    for numV in vertices_lista:
-        for tipo in TIPOS_GRAFOS:
-            seed_inicial = random.randint(0, 10000)  # sorteia uma seed base
-            for i in range(n_execucoes):
-                seed = seed_inicial + i
-                gamma = round(random.uniform(GAMMA_MIN, GAMMA_MAX), 2)
-                dirigido = tipo in TIPOS_DIRIGIDOS
-                desequilibrado = dirigido
-
-                print(f"🔄 V={numV}, ({TIPOS_GRAFOS[tipo]}), Seed={seed}, γ={gamma}")
-                start_time = time.time()
-                arestas, G, graus = geraGrafoPwl(
-                    numV, gamma, dirigido, tipo, seed, desequilibrado=desequilibrado
-                )
-                tempo_geracao = time.time() - start_time
-
-                dados = calcula_metricas(G, graus, gamma, tipo, TIPOS_GRAFOS[tipo], seed, numV, tempo_geracao)
-                resultados.append(dados)
-
-    return resultados
-
-
-def salva_resultados_csv(resultados, arquivo='resultados_powerlaw.csv'):
-    """Salva resultados em arquivo CSV."""
-    if not resultados:
+def main():
+    """Função principal."""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='Teste do gerador de grafos power-law')
+    parser.add_argument('--n_execucoes', type=int, default=NUM_EXECUCOES_PADRAO,
+                       help='Número de execuções')
+    parser.add_argument('--vertices_lista', nargs='+', type=int, 
+                       default=VERTICES_LISTA_PADRAO,
+                       help='Lista de números de vértices')
+    parser.add_argument('--output_csv', default='resultados_powerlaw.csv',
+                       help='Arquivo CSV de saída')
+    parser.add_argument('--output_txt', default='resultado_powerlaw.txt',
+                       help='Arquivo TXT de saída detalhada')
+    parser.add_argument('--seed', type=int, default=None,
+                       help='Seed específico para teste único')
+    
+    args = parser.parse_args()
+    
+    # Se seed específico fornecido, executa teste único
+    if args.seed is not None:
+        print(f"Executando teste único com seed {args.seed}")
+        resultado = executa_teste(0, 10, 2.5, args.seed)
+        if resultado:
+            print(resultado['saida'])
+            # Salva em arquivo
+            with open(args.output_txt, 'w', encoding='utf-8') as f:
+                f.write(resultado['saida'])
+            print(f"Resultado salvo em: {args.output_txt}")
         return
-    chaves = list(resultados[0].keys())
-    with open(arquivo, mode='w', newline='', encoding='utf-8') as f:
-        writer = csv.DictWriter(f, fieldnames=chaves)
-        writer.writeheader()
-        writer.writerows(resultados)
+    
+    # Execução normal com múltiplos testes
+    resultados = []
+    
+    for numV in args.vertices_lista:
+        for execucao in range(args.n_execucoes):
+            seed = random.randint(1, 10000)
+            
+            # Gama aleatório no intervalo válido
+            gamma = random.uniform(GAMMA_MIN, GAMMA_MAX)
+            
+            # Testa todos os tipos de grafo
+            for tipo in range(len(TIPOS_GRAFOS)):
+                resultado = executa_teste(tipo, numV, gamma, seed)
+                if resultado:
+                    resultados.append(resultado)
+    
+    # Salva resultados em CSV
+    if resultados:
+        df = pd.DataFrame([{
+            'tipo': r['tipo'],
+            'numV': r['numV'],
+            'gamma': r['gamma'],
+            'seed': r['seed'],
+            'tipo_detectado': r['tipo_detectado'],
+            'densidade': r['metricas']['densidade'],
+            'grau_medio': r['metricas']['grau_medio'],
+            'num_componentes': r['metricas']['num_componentes'],
+            'pagerank_medio': r['metricas']['pagerank_medio'],
+            'closeness_medio': r['metricas']['closeness_medio'],
+            'modularidade_greedy': r['metricas']['modularidade_greedy']
+        } for r in resultados])
+        
+        df.to_csv(args.output_csv, index=False)
+        print(f"Resultados salvos em: {args.output_csv}")
+        
+        # Salva último resultado detalhado em TXT
+        if resultados:
+            with open(args.output_txt, 'w', encoding='utf-8') as f:
+                f.write(resultados[-1]['saida'])
+            print(f"Resultado detalhado salvo em: {args.output_txt}")
+    
+    print(f"Total de testes executados: {len(resultados)}")
 
-
-# Executar testes
 if __name__ == "__main__":
-    import sys
-    import time
-    
-    # Parâmetros padrão
-    execucoes = 2
-    vertices = [100, 1000, 10000]
-    arquivo_csv = f"resultados_powerlaw_{time.strftime('%Y%m%d_%H%M%S')}.csv"
-    arquivo_resumo = f"resumo_powerlaw_{time.strftime('%Y%m%d_%H%M%S')}.csv"
-    
-    # Processa argumentos de linha de comando
-    if len(sys.argv) > 1:
-        try:
-            execucoes = int(sys.argv[1])
-        except ValueError:
-            print(f"❌ Erro: Número de execuções deve ser um inteiro. Usando padrão: {execucoes}")
-    
-    if len(sys.argv) > 2:
-        try:
-            vertices = [int(x.strip()) for x in sys.argv[2].split(',')]
-        except ValueError:
-            print(f"❌ Erro: Lista de vértices deve ser números separados por vírgula. Usando padrão: {vertices}")
-    
-    if len(sys.argv) > 3:
-        arquivo_csv = sys.argv[3]
-        arquivo_resumo = arquivo_csv.replace('resultados_', 'resumo_')
-    
-    # Exibe configuração
-    print(f"🚀 Configuração de Teste Power-Law:")
-    print(f"   Execuções por tipo: {execucoes}")
-    print(f"   Vértices: {vertices}")
-    print(f"   Arquivo de saída: {arquivo_csv}")
-    print(f"   Arquivo de resumo: {arquivo_resumo}")
-    print(f"   Total estimado: {execucoes * len(vertices) * len(TIPOS_GRAFOS)} testes")
-    print(f"   {'='*50}")
-    
-    # Executa os testes
-    resultados = executa_testes_pwl(n_execucoes=execucoes, vertices_lista=vertices)
-    salva_resultados_csv(resultados, arquivo_csv)
-    salva_resumo_csv(resultados, arquivo=arquivo_resumo)
-    print(f"✅ Testes concluídos! Resultados salvos em: {arquivo_csv}")
+    main()

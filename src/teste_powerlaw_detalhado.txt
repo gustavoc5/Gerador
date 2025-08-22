@@ -1,0 +1,53 @@
+numV: 10, gamma: 2.5, seed: 123
+tipo: 0 (Simples)
+
+=== MATRIZ DE ADJACÊNCIA ===
+0: [0. 0. 1. 0. 1. 0. 0. 0. 0. 0.]
+1: [0. 0. 0. 0. 0. 0. 0. 1. 0. 0.]
+2: [1. 0. 0. 0. 0. 0. 1. 0. 0. 0.]
+3: [0. 0. 0. 0. 0. 1. 0. 0. 0. 0.]
+4: [1. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
+5: [0. 0. 0. 1. 0. 0. 0. 0. 0. 0.]
+6: [0. 0. 1. 0. 0. 0. 0. 0. 0. 0.]
+7: [0. 1. 0. 0. 0. 0. 0. 0. 0. 0.]
+8: [0. 0. 0. 0. 0. 0. 0. 0. 0. 1.]
+9: [0. 0. 0. 0. 0. 0. 0. 0. 1. 0.]
+
+=== LISTA DE ARESTAS ===
+0: (0, 2)
+1: (0, 4)
+2: (1, 7)
+3: (2, 6)
+4: (3, 5)
+5: (8, 9)
+
+=== MÉTRICAS DO GRAFO ===
+Número de vértices: 10
+Número de arestas: 6
+Tipo detectado: 0 (Simples)
+Densidade: 0.133333
+Grau médio: 1.20
+Grau máximo: 2
+Grau mínimo: 1
+Número de componentes: 4
+
+=== CENTRALIDADE ===
+PageRank médio: 0.100000
+PageRank máximo: 0.129825
+Closeness médio: 0.150000
+Closeness máximo: 0.250000
+Betweenness médio: 0.011111
+Betweenness máximo: 0.055556
+
+=== DISTÂNCIAS ===
+Diâmetro: ∞ (grafo desconexo)
+Raio: ∞ (grafo desconexo)
+Distância média: ∞ (grafo desconexo)
+
+=== COMUNIDADES ===
+Número de comunidades (Greedy): 4
+Modularidade (Greedy): 0.666667
+Número de comunidades (Label): 5
+Modularidade (Label): 0.625000
+
+Gerado em: 2025-08-21 22:08:26
