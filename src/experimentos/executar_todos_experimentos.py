@@ -8,6 +8,7 @@ EXPERIMENTOS DISPONÍVEIS:
 2. experimento_2_parametros_simples.py - Parâmetros críticos do gerador simples
 3. experimento_3_parametros_powerlaw.py - Parâmetros críticos do gerador power-law
 4. experimento_4_escalabilidade.py - Análise de escalabilidade e limitações
+5. experimento_5_replicacoes.py - Replicações com análise estatística
 
 USO:
 python executar_todos_experimentos.py --experimentos 1,2,3,4 --modo sequencial
@@ -29,7 +30,8 @@ def executa_experimento(experimento_num, args):
         1: "experimento_1_comparacao_geradores.py",
         2: "experimento_2_parametros_simples.py", 
         3: "experimento_3_parametros_powerlaw.py",
-        4: "experimento_4_escalabilidade.py"
+        4: "experimento_4_escalabilidade.py",
+        5: "experimento_5_replicacoes.py"
     }
     
     script_name = script_map.get(experimento_num)
@@ -159,8 +161,8 @@ def executa_paralelo(experimentos, args, num_cores):
 def main():
     """Função principal."""
     parser = argparse.ArgumentParser(description='Executa todos os experimentos de geração de grafos')
-    parser.add_argument('--experimentos', nargs='+', type=int, default=[1,2,3,4],
-                       help='Lista de experimentos para executar (1-4)')
+    parser.add_argument('--experimentos', nargs='+', type=int, default=[1,2,3,4,5],
+                       help='Lista de experimentos para executar (1-5)')
     parser.add_argument('--modo', choices=['sequencial', 'paralelo'], default='sequencial',
                        help='Modo de execução')
     parser.add_argument('--cores', type=int, default=4,
@@ -177,7 +179,7 @@ def main():
     args = parser.parse_args()
     
     # Valida experimentos
-    experimentos_validos = [1, 2, 3, 4]
+    experimentos_validos = [1, 2, 3, 4, 5]
     experimentos = [exp for exp in args.experimentos if exp in experimentos_validos]
     
     if not experimentos:
