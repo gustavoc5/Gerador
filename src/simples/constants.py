@@ -20,6 +20,9 @@ TIPOS_GRAFOS = {
     31: "Pseudografo-Dirigido", # Dirigido, com laços, com arestas múltiplas
 }
 
+# Lista de tipos válidos para uso em loops
+TIPOS_VALIDOS = [0, 1, 20, 21, 30, 31]
+
 # Agrupamentos por características
 TIPOS_DIRIGIDOS = [1, 21, 31]      # Grafos com arestas direcionadas
 TIPOS_MULTIGRAFOS = [20, 21, 30, 31]  # Grafos que permitem arestas múltiplas
@@ -62,7 +65,7 @@ PESO_MAX_PADRAO = 10        # Peso máximo das arestas
 
 # Configurações padrão para execução de testes
 NUM_EXECUCOES_PADRAO = 5    # Número padrão de execuções por configuração
-VERTICES_LISTA_PADRAO = [1000, 5000]  # Tamanhos padrão de vértices para testes
+VERTICES_LISTA_PADRAO = [100, 500]  # Tamanhos padrão de vértices para testes (demonstração)
 
 # =============================================================================
 # CONFIGURAÇÕES DE DENSIDADE

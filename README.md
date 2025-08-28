@@ -1,259 +1,112 @@
-# Gerador de Grafos
+# 🎯 GERADOR DE GRAFOS - TCC
 
-Um sistema completo para geração, análise e teste de grafos com diferentes propriedades e distribuições.
+Sistema completo de geração de grafos para análise de redes, desenvolvido como trabalho de conclusão de curso.
 
-## 📋 Visão Geral
-
-Este projeto implementa dois geradores de grafos especializados:
-
-- **Módulo Simples**: Gera grafos aleatórios simples com controle de densidade e conectividade
-- **Módulo Power-Law**: Gera grafos com distribuição de graus seguindo lei de potência (power-law)
-
-Ambos os módulos suportam 6 tipos de grafos: Simples, Digrafo, Multigrafo, Multigrafo-Dirigido, Pseudografo e Pseudografo-Dirigido.
-
-## 🏗️ Estrutura do Projeto
+## 📁 Estrutura do Projeto
 
 ```
-src/
-├── simples/                 # Gerador de grafos simples/aleatórios
-│   ├── main.py             # Interface interativa
-│   ├── gerador.py          # Lógica principal de geração
-│   ├── utils.py            # Funções utilitárias
-│   ├── visualizacao.py     # Visualização de grafos
-│   ├── interface.py        # Interface adicional
-│   ├── test_simples.py     # Testes automatizados
-│   ├── mass_test.py        # Interface para testes em massa
-│   ├── constants.py        # Constantes centralizadas
-│   ├── exceptions.py       # Exceções customizadas
-│   └── README_TESTES.md    # Documentação de testes
-├── powerlaw/               # Gerador de grafos power-law
-│   ├── main.py             # Interface interativa
-│   ├── pwl.py              # Lógica principal de geração
-│   ├── distribuicao.py     # Validação de distribuições
-│   ├── analise.py          # Análise de comunidades e centralidade
-│   ├── visualizacao.py     # Visualização de grafos
-│   ├── test_pwl.py         # Testes automatizados
-│   ├── mass_test.py        # Interface para testes em massa
-│   ├── constants.py        # Constantes centralizadas
-│   └── README_TESTES.md    # Documentação de testes
-├── generate_experiments.py # Gerador de comandos para experimentos paralelos
-├── generate_experiments.sh # Script bash para experimentos paralelos
-├── concatenate_results.py  # Agregador de resultados
-└── README_PARALLEL_EXPERIMENTS.md # Documentação do sistema paralelo
+Gerador/
+├── src/                    # 🧠 Código fonte principal
+│   ├── simples/           # Gerador de grafos simples
+│   ├── powerlaw/          # Gerador de grafos power-law
+│   ├── gerador_teste_automatico.py  # Gerador automático
+│   ├── teste_rapido.py    # Testes rápidos
+│   └── README.md          # Documentação do src/
+├── resultados_teste/       # 📊 Resultados de testes
+│   ├── testes_automaticos/
+│   └── testes_rapidos/
+├── visualizacoes/         # 📈 Gráficos e visualizações
+├── backup_codigos_antigos/ # 📦 Códigos antigos (backup)
+├── requirements.txt       # 📋 Dependências
+└── README.md             # Este arquivo
 ```
 
-## 🚀 Funcionalidades Principais
+## 🚀 Como Usar
 
-### Módulo Simples
-- **Geração de grafos aleatórios** com controle de densidade
-- **Suporte a 6 tipos de grafos** (simples, dirigidos, múltiplas arestas, loops)
-- **Controle de conectividade** (componentes conexas)
-- **Validação automática** de parâmetros e propriedades
-- **Detecção automática** do tipo de grafo gerado
-
-### Módulo Power-Law
-- **Geração de grafos com distribuição Zipf** (power-law)
-- **Controle do expoente γ** (gamma) da distribuição
-- **Validação de qualidade** da distribuição via teste KS
-- **Análise de comunidades** (Greedy Modularity, Label Propagation)
-- **Métricas de centralidade** (Degree, PageRank, Closeness)
-- **Análise de hop plot** (distâncias de caminhos mínimos)
-
-### Sistema de Experimentos Paralelos
-- **Geração de comandos** para execução paralela
-- **Evita condições de corrida** com arquivos de saída únicos
-- **Escalabilidade** para milhares de experimentos
-- **Agregação automática** de resultados
-
-## 📦 Dependências
-
+### 1. Instalação
 ```bash
-pip install numpy networkx powerlaw matplotlib pandas
+pip install -r requirements.txt
 ```
 
-## 🎯 Uso Rápido
-
-### Interface Interativa
-
+### 2. Teste Individual
 ```bash
-# Módulo Simples
-cd src/simples
-python main.py
+# Teste simples
+python src/simples/test_simples.py --seed 123 --output_txt resultado.txt
 
-# Módulo Power-Law
-cd src/powerlaw
-python main.py
+# Teste powerlaw
+python src/powerlaw/test_pwl.py --seed 456 --output_txt resultado.txt
 ```
 
-### Testes Automatizados
-
+### 3. Teste Automático com Seed Incremental
 ```bash
-# Teste simples com 10 execuções, 50 vértices
-cd src/simples
-python test_simples.py 10 50 resultados.csv
+# Gera 20 testes (seed 1000-1019)
+python src/gerador_teste_automatico.py --num_testes 20 --base_seed 1000
 
-# Teste power-law com 10 execuções, 100 vértices
-cd src/powerlaw
-python test_pwl.py 10 100 resultados.csv
+# Apenas módulo simples
+python src/gerador_teste_automatico.py --modulo simples --num_testes 10
+
+# Apenas módulo powerlaw
+python src/gerador_teste_automatico.py --modulo powerlaw --num_testes 10
 ```
 
-### Testes em Massa
-
+### 4. Teste Rápido (Pré-configurado)
 ```bash
-# Interface menu-driven para testes
-cd src/simples
-python mass_test.py
-
-cd src/powerlaw
-python mass_test.py
+# Gera 60 arquivos (30 simples + 30 powerlaw)
+python src/teste_rapido.py
 ```
 
-### Experimentos Paralelos
+## 📊 Tipos de Grafo Suportados
 
-```bash
-# Gerar comandos para experimentos paralelos
-python generate_experiments.py --main-dir /path/to/results --n-seeds 10
+- **0**: Simples
+- **1**: Digrafo
+- **2**: Multigrafo
+- **3**: Multigrafo-Dirigido
+- **4**: Pseudografo
+- **5**: Pseudografo-Dirigido
 
-# Executar em paralelo (requer GNU parallel)
-bash generate_experiments.sh | parallel
+## 📈 Formato de Saída
 
-# Concatenar resultados
-python concatenate_results.py --main-dir /path/to/results
-```
+Todos os testes geram arquivos CSV puros organizados por seed:
 
-## 🔧 Configuração
+**Simples (30 campos):**
+- Parâmetros: numV, numA, seed, n, numC, fator, tipo, tipo_detectado
+- Métricas básicas: num_vertices, num_arestas, densidade, grau_medio, grau_max, grau_min, num_componentes
+- Centralidade: pagerank_medio, pagerank_max, closeness_medio, closeness_max, betweenness_medio, betweenness_max
+- Distâncias: diametro, raio, distancia_media
+- Comunidades: num_comunidades_greedy, modularidade_greedy, num_comunidades_label, modularidade_label
+- Tempo: tempo_geracao, timestamp
 
-### Parâmetros Principais
+**Powerlaw (27 campos):**
+- Parâmetros: numV, gamma, seed, tipo, tipo_detectado
+- Métricas básicas: num_vertices, num_arestas, densidade, grau_medio, grau_max, grau_min, num_componentes
+- Centralidade: pagerank_medio, pagerank_max, closeness_medio, closeness_max, betweenness_medio, betweenness_max
+- Distâncias: diametro, raio, distancia_media
+- Comunidades: num_comunidades_greedy, modularidade_greedy, num_comunidades_label, modularidade_label
+- Tempo: tempo_geracao, timestamp
 
-**Módulo Simples:**
-- `n_vertices`: Número de vértices
-- `densidade`: Densidade desejada (0.0 a 1.0)
-- `n_componentes`: Número de componentes conexas
-- `tipo_grafo`: Tipo de grafo (1-6)
+## ⚡ Performance
 
-**Módulo Power-Law:**
-- `n_vertices`: Número de vértices
-- `gamma`: Expoente da distribuição power-law
-- `tipo_grafo`: Tipo de grafo (1-6)
-- `n_arestas`: Número de arestas (opcional)
+- **Teste individual**: ~0.1-0.5 segundos
+- **Teste automático**: ~2-4 segundos por arquivo
+- **Teste rápido**: ~4 minutos para 60 arquivos
+- **Seed incremental**: Automático (seed + 1 a cada iteração)
 
-### Constantes Configuráveis
+## 🎯 Características
 
-Ambos os módulos possuem arquivos `constants.py` com parâmetros ajustáveis:
-- Limites de tentativas
-- Configurações de teste
-- Parâmetros de visualização
-- Tipos de grafos suportados
+- ✅ **Organização por seed**: Cada seed em diretório separado
+- ✅ **Sem condições de corrida**: Arquivos independentes
+- ✅ **CSV puro**: Apenas valores, sem cabeçalhos
+- ✅ **Tempo de geração**: Incluído em todos os resultados
+- ✅ **Parâmetros aleatórios**: Vértices, arestas, gamma, tipo
+- ✅ **Execução paralela**: Suporte para testes em massa
 
-## 📊 Saída e Resultados
+## 📝 Documentação Detalhada
 
-### Arquivos CSV
-- **Métricas de grafos**: Vértices, arestas, densidade, componentes
-- **Propriedades**: Tipo detectado, conectividade, distribuição de graus
-- **Análises**: Centralidade, comunidades, hop plot (power-law)
-- **Validações**: Qualidade da distribuição power-law
+Para mais informações sobre os módulos específicos, consulte:
+- `src/README.md` - Documentação completa do código fonte
+- `src/simples/` - Gerador de grafos simples
+- `src/powerlaw/` - Gerador de grafos power-law
 
-### Visualizações
-- **Grafos pequenos** (< 50 vértices): Visualização completa
-- **Grafos grandes**: Histogramas de distribuição de graus
-- **Análises**: Gráficos de centralidade e comunidades
+## 🔧 Desenvolvimento
 
-## 🧪 Testes e Validação
-
-### Testes Automatizados
-- **Validação de parâmetros**: Verificação de entrada
-- **Verificação de propriedades**: Confirmação de características
-- **Testes de stress**: Grafos grandes e casos extremos
-- **Reprodutibilidade**: Testes com sementes fixas
-
-### Validação de Qualidade
-- **Distribuição power-law**: Teste Kolmogorov-Smirnov
-- **Detecção de tipo**: Identificação automática correta
-- **Conectividade**: Verificação de componentes
-- **Densidade**: Confirmação de valores calculados
-
-## 🔄 Sistema de Experimentos Paralelos
-
-### Geração de Comandos
-```bash
-# Python
-python generate_experiments.py --main-dir /results --n-seeds 100 --module both
-
-# Bash
-bash generate_experiments.sh --main-dir /results --n-seeds 100
-```
-
-### Execução Paralela
-```bash
-# Usando GNU parallel
-bash generate_experiments.sh | parallel -j 8
-
-# Usando xargs
-bash generate_experiments.sh | xargs -P 4 -I {} bash -c "{}"
-```
-
-### Estrutura de Resultados
-```
-results/
-├── simples/
-│   ├── seed_001/
-│   │   ├── size50.txt
-│   │   ├── size100.txt
-│   │   └── ...
-│   └── ...
-├── powerlaw/
-│   ├── seed_001/
-│   │   ├── gamma2.0.txt
-│   │   ├── gamma2.5.txt
-│   │   └── ...
-│   └── ...
-└── concatenated/
-    ├── simples_all.csv
-    ├── powerlaw_all.csv
-    └── summary.txt
-```
-
-## 📈 Escalabilidade
-
-### Performance
-- **Grafos pequenos** (< 100 vértices): < 1 segundo
-- **Grafos médios** (100-1000 vértices): 1-10 segundos
-- **Grafos grandes** (1000+ vértices): 10+ segundos
-- **Paralelização**: Linear com número de cores
-
-### Limites Práticos
-- **Máximo testado**: 10.000 vértices
-- **Experimentos paralelos**: 1000+ simultâneos
-- **Armazenamento**: ~1MB por experimento
-
-## 🛠️ Desenvolvimento
-
-### Arquitetura
-- **Modular**: Separação clara de responsabilidades
-- **Extensível**: Fácil adição de novos tipos de grafos
-- **Testável**: Cobertura completa de testes
-- **Documentado**: Docstrings detalhadas e exemplos
-
-### Boas Práticas
-- **Tratamento de erros**: Exceções customizadas
-- **Validação**: Verificação rigorosa de entrada
-- **Logging**: Rastreabilidade completa
-- **Constantes**: Centralização de parâmetros
-
-## 📚 Documentação Adicional
-
-- `src/simples/README_TESTES.md`: Documentação completa dos testes do módulo simples
-- `src/powerlaw/README_TESTES.md`: Documentação completa dos testes do módulo power-law
-- `src/README_PARALLEL_EXPERIMENTS.md`: Guia completo do sistema de experimentos paralelos
-
-## 🤝 Contribuição
-
-O projeto está estruturado para facilitar contribuições:
-1. **Módulos independentes**: Cada módulo pode ser desenvolvido separadamente
-2. **Interfaces padronizadas**: APIs consistentes entre módulos
-3. **Testes automatizados**: Validação automática de mudanças
-4. **Documentação**: Guias detalhados para novos desenvolvedores
-
-## 📄 Licença
-
-Este projeto é parte de um trabalho de conclusão de curso (TCC) da Universidade Federal de Itajubá (UNIFEI).
+Este projeto foi desenvolvido como parte do TCC em Ciência da Computação, focado na geração e análise de diferentes tipos de grafos para estudos de redes complexas.

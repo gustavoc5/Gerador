@@ -1,0 +1,60 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+env/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+resultados_teste/
+testes_automaticos/
+testes_rapidos/
+testes_*
+*.txt
+*.csv
+*.png
+*.jpg
+*.jpeg
+
+# Keep only specific test results
+!resultados_teste/README.md
+!visualizacoes/README.md
+
+# Backup files
+backup_codigos_antigos/
+
+# Temporary files
+*.tmp
+*.temp
+
