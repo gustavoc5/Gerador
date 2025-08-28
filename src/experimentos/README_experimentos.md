@@ -1,65 +1,135 @@
-# 🧪 EXPERIMENTOS DE GERAÇÃO DE GRAFOS
+# 🧪 SISTEMA DE EXPERIMENTOS
 
-Sistema simples para testar os geradores de grafos "Simples" e "Power-Law".
+Sistema simplificado e otimizado para execução de experimentos com geradores de grafos.
 
 ## 📋 EXPERIMENTOS DISPONÍVEIS
 
-| Exp | Arquivo | Descrição | Testes |
-|-----|---------|-----------|--------|
-| 1 | `experimento_1_comparacao_geradores.py` | Comparação básica entre geradores | 72 |
-| 2 | `experimento_2_parametros_simples.py` | Parâmetros do gerador simples | 432 |
-| 3 | `experimento_3_parametros_powerlaw.py` | Parâmetros do gerador power-law | 432 |
-| 4 | `experimento_4_escalabilidade.py` | Testes de escalabilidade | 144 |
-| 5 | `experimento_5_replicacoes.py` | Replicações para análise estatística | 576 |
+| **ID** | **Arquivo** | **Descrição** | **Testes** |
+|--------|-------------|---------------|------------|
+| **S** | `experimento_simples_completo.py` | **Simples completo** - Todas as métricas | 2.700 |
+| **P** | `experimento_powerlaw_completo.py` | **Power-Law completo** - Todas as métricas | 180 |
 
-## 🚀 COMO EXECUTAR
+## 🚀 EXECUÇÃO RÁPIDA
 
-### Execução Individual
+### Teste Rápido (Pequena Amostra)
 ```bash
-# Experimento 1 - Comparação básica
-python src/experimentos/experimento_1_comparacao_geradores.py --teste_rapido
+# Simples completo
+python src/experimentos/experimento_simples_completo.py --teste_rapido
 
-# Experimento 2 - Parâmetros simples
-python src/experimentos/experimento_2_parametros_simples.py --teste_rapido
-
-# Experimento 3 - Parâmetros power-law
-python src/experimentos/experimento_3_parametros_powerlaw.py --teste_rapido
-
-# Experimento 4 - Escalabilidade
-python src/experimentos/experimento_4_escalabilidade.py --teste_rapido
-
-# Experimento 5 - Replicações
-python src/experimentos/experimento_5_replicacoes.py --teste_rapido
+# Power-Law completo  
+python src/experimentos/experimento_powerlaw_completo.py --teste_rapido
 ```
 
-### Executar Todos
+### Execução Completa
 ```bash
-# Executa todos os experimentos
-python src/experimentos/executar_todos_experimentos.py --teste_rapido
+# Simples completo
+python src/experimentos/experimento_simples_completo.py
 
-# Executa experimentos específicos
-python src/experimentos/executar_todos_experimentos.py --experimentos 1 2 5 --teste_rapido
+# Power-Law completo
+python src/experimentos/experimento_powerlaw_completo.py
 ```
 
-## 📊 ONDE OS RESULTADOS SÃO SALVOS
+### Executar Todos os Experimentos
+```bash
+python src/experimentos/executar_todos_experimentos.py
+```
 
-Cada experimento cria uma pasta `resultados_experimento_X/` com:
-- `dados_completos.csv` - Todos os dados brutos
-- `resumo_estatisticas.txt` - Resumo das métricas
-- `log_execucao.txt` - Log da execução
+## 📊 MÉTRICAS COLETADAS
 
-## ⚙️ PARÂMETROS PRINCIPAIS
-
-- `--teste_rapido`: Executa versão reduzida para teste
-- `--max_vertices`: Limite máximo de vértices (padrão: 10000)
-- `--output_dir`: Pasta de saída personalizada
-
-## 📈 MÉTRICAS COLETADAS
-
-- **Tempo**: Tempo de geração
-- **Estrutura**: Vértices, arestas, densidade, graus
-- **Conectividade**: Componentes, modularidade
+### Métricas Gerais (Ambos os Geradores)
+- **Básicas**: Vértices, arestas, densidade, tempo de geração
+- **Conectividade**: Número de componentes, conectividade
+- **Grau**: Médio, mediana, máximo, mínimo, desvio, skewness, kurtosis
 - **Distância**: Diâmetro, raio, distância média
-- **Centralidade**: PageRank, closeness, betweenness
-- **Memória**: Uso de RAM em diferentes etapas
-- **Qualidade**: Ajuste power-law (R², p-valor)
+- **Centralidade**: PageRank, Closeness, Betweenness (média, mediana, máximo, mínimo, desvio)
+- **Comunidades**: Número de comunidades e modularidade (greedy e label propagation)
+
+### Métricas Específicas do Simples
+- Eficiência de geração
+- Razão vértices/arestas
+
+### Métricas Específicas do Power-Law
+- Qualidade do ajuste power-law (R, p-value)
+- Expoente alpha
+- Valor xmin
+- Eficiência de geração power-law
+
+### Métricas de Equivalência Estrutural (Entre Replicações)
+- Similaridade média, mediana, desvio
+- Consistência estrutural
+- Frações de pares altamente/medianamente/pouco similares
+- Detecção de outliers estruturais
+
+## 📁 ESTRUTURA DE SAÍDA
+
+Cada experimento gera:
+
+```
+resultados_experimentos/
+├── exp_simples_completo/
+│   ├── resultados_simples_completo.csv      # Dados agregados
+│   ├── resumo_simples_completo.csv          # Resumo estatístico
+│   └── teste_tX_vY_aZ_sW_pP_cC_fF/         # Dados individuais por teste
+│       ├── dados_individuais.csv            # Métricas de cada grafo
+│       ├── grafo_X_arestas.txt              # Lista de arestas
+│       ├── resumo_teste.csv                 # Médias do teste
+│       └── info_teste.txt                   # Informações do teste
+└── exp_powerlaw_completo/
+    ├── resultados_powerlaw_completo.csv     # Dados agregados
+    ├── resumo_powerlaw_completo.csv         # Resumo estatístico
+    └── teste_tX_vY_gZ_sW/                   # Dados individuais por teste
+        ├── dados_individuais.csv            # Métricas de cada grafo
+        ├── grafo_X_arestas.txt              # Lista de arestas
+        ├── resumo_teste.csv                 # Médias do teste
+        └── info_teste.txt                   # Informações do teste
+```
+
+## ⚙️ PARÂMETROS DOS EXPERIMENTOS
+
+### Simples Completo
+- **Tipos**: 0 (Simples), 1 (Digrafo)
+- **Vértices**: 100, 1000, 10000, 100000, 1000000
+- **Preferência densidade**: 0 (Sem preferência), 1 (Esparso), 2 (Denso)
+- **Estratégia arestas**: Proporcional
+- **Componentes**: 0, 1
+- **Fator balanceamento**: 0, 1
+- **Seeds**: 1000, 2000, 3000, 4000, 5000
+- **Grafos por teste**: 10 (fixo)
+
+### Power-Law Completo
+- **Tipos**: 0 (Simples), 1 (Digrafo)
+- **Vértices**: 100, 1000, 10000, 100000, 1000000
+- **Gamma**: 2.0, 2.5, 3.0
+- **Seeds**: 1000, 2000, 3000, 4000, 5000
+- **Grafos por teste**: 10 (fixo)
+
+## 🔧 FERRAMENTAS AUXILIARES
+
+### `metrica_equivalencia_replicacoes.py`
+Módulo para análise de equivalência estrutural entre grafos replicados:
+- Similaridade entre pares de grafos
+- Consistência estrutural
+- Detecção de outliers
+- Comparação entre geradores
+
+### `executar_todos_experimentos.py`
+Script para execução automatizada de todos os experimentos:
+- Execução sequencial
+- Relatórios consolidados
+- Análise comparativa
+
+## 📈 ANÁLISE DOS RESULTADOS
+
+Os experimentos geram dados estruturados para análise:
+- **Análise descritiva**: Estatísticas básicas por parâmetro
+- **Análise comparativa**: Comparação entre geradores
+- **Análise de consistência**: Equivalência estrutural entre replicações
+- **Análise de escalabilidade**: Comportamento com diferentes tamanhos
+
+## 🎯 OBJETIVOS DOS EXPERIMENTOS
+
+1. **Caracterização**: Entender propriedades dos grafos gerados
+2. **Comparação**: Diferenças entre geradores Simples e Power-Law
+3. **Consistência**: Verificar reprodutibilidade dos resultados
+4. **Escalabilidade**: Comportamento com grafos grandes
+5. **Validação**: Confirmar que os parâmetros são respeitados

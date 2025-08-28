@@ -2,7 +2,7 @@ from pwl import geraGrafoPwl, tipoGrafo
 from distribuicao import validaDistribuicao
 from visualizacao import visualizaGrafo
 from analise import analisa_grafo
-from constants import TIPOS_GRAFOS, GAMMA_MIN, GAMMA_MAX
+from .constants import TIPOS_GRAFOS, GAMMA_MIN, GAMMA_MAX
 import random
 
 

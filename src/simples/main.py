@@ -6,7 +6,7 @@ from utils import (
     escreveMatrizParaArquivo,
 )
 from visualizacao import verGrafo
-from constants import TIPOS_GRAFOS, GERACAO, DENSIDADE, PESO_MIN_PADRAO, PESO_MAX_PADRAO
+from .constants import TIPOS_GRAFOS, GERACAO, DENSIDADE, PESO_MIN_PADRAO, PESO_MAX_PADRAO
 import random
 import math
 import sys

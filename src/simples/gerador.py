@@ -1,15 +1,15 @@
 import random
 import math
 import numpy as np
-from constants import (
+from .constants import (
     TIPOS_DIRIGIDOS, TIPOS_MULTIGRAFOS, TIPOS_PSEUDOGRAFOS,
     MAX_TENTATIVAS
 )
-from exceptions import (
+from .exceptions import (
     ParametrosInvalidosError, TentativasExcedidasError,
     ArestasInsuficientesError, ComponentesInvalidasError
 )
-from utils import tipoGrafo, compConexas
+from .utils import tipoGrafo, compConexas
 
 
 def verificaAresta(tipo, numV, numC):

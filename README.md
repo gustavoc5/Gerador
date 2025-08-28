@@ -8,7 +8,7 @@ Sistema completo de geração de grafos para análise de redes, desenvolvido com
 Gerador/
 ├── src/                    # 🧠 Código fonte principal
 │   ├── simples/           # Gerador de grafos simples
-│   ├── powerlaw/          # Gerador de grafos power-law
+│   ├── pwl/               # Gerador de grafos power-law
 │   ├── gerador_teste_automatico.py  # Gerador automático
 │   ├── teste_rapido.py    # Testes rápidos
 │   └── README.md          # Documentação do src/
@@ -34,7 +34,7 @@ pip install -r requirements.txt
 python src/simples/test_simples.py --seed 123 --output_txt resultado.txt
 
 # Teste powerlaw
-python src/powerlaw/test_pwl.py --seed 456 --output_txt resultado.txt
+python src/pwl/test_pwl.py --seed 456 --output_txt resultado.txt
 ```
 
 ### 3. Teste Automático com Seed Incremental
@@ -105,7 +105,7 @@ Todos os testes geram arquivos CSV puros organizados por seed:
 Para mais informações sobre os módulos específicos, consulte:
 - `src/README.md` - Documentação completa do código fonte
 - `src/simples/` - Gerador de grafos simples
-- `src/powerlaw/` - Gerador de grafos power-law
+- `src/pwl/` - Gerador de grafos power-law
 
 ## 🔧 Desenvolvimento
 

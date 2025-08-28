@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 import networkx as nx
-from constants import MAX_NOS_VISUALIZACAO, TAMANHO_NOS_PEQUENOS
+from .constants import MAX_NOS_VISUALIZACAO, TAMANHO_NOS_PEQUENOS
 
 
 def visualizaGrafo(G, dirigido=False):
