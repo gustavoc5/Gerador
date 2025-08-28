@@ -52,7 +52,7 @@ DENSIDADE = {
 # =============================================================================
 
 # Limites de tentativas e amostras
-MAX_TENTATIVAS = 100        # Máximo de tentativas para gerar grafo válido
+MAX_TENTATIVAS = 1000       # Máximo de tentativas para gerar grafo válido
 MAX_AMOSTRAS_HOP = 10000    # Máximo de amostras para cálculo de distâncias
 
 # Pesos padrão para grafos valorados

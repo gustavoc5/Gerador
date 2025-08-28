@@ -30,6 +30,25 @@ sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
 from pwl.pwl import geraGrafoPwl
 from pwl.constants import GAMMA_MIN, GAMMA_MAX, GRAU_MIN_PADRAO
 
+def gera_gamma_aleatorio(categoria):
+    """
+    Gera um valor gamma aleatório dentro da categoria especificada.
+    
+    Args:
+        categoria (str): 'denso', 'moderado', ou 'esparso'
+    
+    Returns:
+        float: Valor gamma aleatório no intervalo da categoria
+    """
+    if categoria == 'denso':
+        return np.random.uniform(2.0, 2.3)
+    elif categoria == 'moderado':
+        return np.random.uniform(2.3, 2.7)
+    elif categoria == 'esparso':
+        return np.random.uniform(2.7, 3.0)
+    else:
+        raise ValueError(f"Categoria inválida: {categoria}")
+
 def monitora_memoria():
     """Monitora o uso de memória do processo atual."""
     process = psutil.Process(os.getpid())
@@ -306,7 +325,7 @@ def main():
                        help='Diretório de saída')
     parser.add_argument('--max_vertices', type=int, default=10000,
                        help='Máximo de vértices para teste (padrão: 10000)')
-    parser.add_argument('--seeds', nargs='+', type=int, default=[1000, 2000, 3000, 4000, 5000],
+    parser.add_argument('--seeds', nargs='+', type=int, default=[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
                        help='Lista de seeds para teste')
     parser.add_argument('--teste_rapido', action='store_true',
                        help='Executa versão reduzida para teste rápido')
@@ -318,7 +337,7 @@ def main():
     
     if args.teste_rapido:
         TAMANHOS = [100, 1000]
-        EXPONENTES_GAMMA = [2.0, 2.5, 3.0]
+        CATEGORIAS_GAMMA = ['denso', 'moderado']
         SEEDS = [1000, 2000]
     else:
         TAMANHOS = [100, 1000, 10000]
@@ -326,7 +345,7 @@ def main():
             TAMANHOS.append(100000)
         if args.max_vertices >= 1000000:
             TAMANHOS.append(1000000)
-        EXPONENTES_GAMMA = [2.0, 2.2, 2.5, 2.8, 3.0]
+        CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
         SEEDS = args.seeds
     
     # Cria diretório de saída
@@ -337,11 +356,11 @@ def main():
     print("=" * 80)
     print(f"Tipos de grafo: {len(TIPOS_GRAFOS)} tipos")
     print(f"Tamanhos: {TAMANHOS}")
-    print(f"Expoentes gamma: {EXPONENTES_GAMMA}")
+    print(f"Categorias gamma: {CATEGORIAS_GAMMA}")
     print(f"Seeds: {SEEDS}")
     
     # Calcula total de combinações
-    total_combinacoes = (len(TIPOS_GRAFOS) * len(TAMANHOS) * len(EXPONENTES_GAMMA) * len(SEEDS))
+    total_combinacoes = (len(TIPOS_GRAFOS) * len(TAMANHOS) * len(CATEGORIAS_GAMMA) * len(SEEDS))
     print(f"Total de combinações: {total_combinacoes}")
     print(f"Diretório de saída: {args.output_dir}")
     print("=" * 80)
@@ -353,11 +372,15 @@ def main():
     
     for tipo in TIPOS_GRAFOS:
         for numV in TAMANHOS:
-            for gamma in EXPONENTES_GAMMA:
+            for categoria_gamma in CATEGORIAS_GAMMA:
                 for seed in SEEDS:
                     teste_atual += 1
                     
-                    print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - γ={gamma} - Seed={seed}")
+                    # Gera gamma aleatório dentro da categoria
+                    np.random.seed(seed)  # Para reprodutibilidade
+                    gamma = gera_gamma_aleatorio(categoria_gamma)
+                    
+                    print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {categoria_gamma} (γ={gamma:.3f}) - Seed={seed}")
                     
                     resultado = executa_teste_powerlaw_completo(
                         tipo, numV, gamma, seed
@@ -406,16 +429,23 @@ def main():
                     f.write(f"  Qualidade power-law média (R): {df_tipo['qualidade_powerlaw_R'].mean():.3f}\n")
                     f.write(f"  Memória pico média: {df_tipo['memoria_pico_mb'].mean():.1f}MB\n\n")
             
-            # Estatísticas por gamma
-            for gamma in EXPONENTES_GAMMA:
-                df_gamma = df[df['gamma'] == gamma]
-                if len(df_gamma) > 0:
-                    f.write(f"GAMMA {gamma}:\n")
-                    f.write(f"  Testes: {len(df_gamma)}\n")
-                    f.write(f"  Densidade média: {df_gamma['densidade'].mean():.4f}\n")
-                    f.write(f"  Grau médio: {df_gamma['grau_medio'].mean():.2f}\n")
-                    f.write(f"  Qualidade power-law média (R): {df_gamma['qualidade_powerlaw_R'].mean():.3f}\n")
-                    f.write(f"  Alpha médio: {df_gamma['powerlaw_alpha'].mean():.3f}\n\n")
+            # Estatísticas por categoria gamma
+            for categoria in CATEGORIAS_GAMMA:
+                if categoria == 'denso':
+                    df_cat = df[(df['gamma'] >= 2.0) & (df['gamma'] < 2.3)]
+                elif categoria == 'moderado':
+                    df_cat = df[(df['gamma'] >= 2.3) & (df['gamma'] < 2.7)]
+                elif categoria == 'esparso':
+                    df_cat = df[(df['gamma'] >= 2.7) & (df['gamma'] <= 3.0)]
+                
+                if len(df_cat) > 0:
+                    f.write(f"CATEGORIA {categoria.upper()} (γ ∈ {[2.0, 2.3] if categoria == 'denso' else [2.3, 2.7] if categoria == 'moderado' else [2.7, 3.0]}):\n")
+                    f.write(f"  Testes: {len(df_cat)}\n")
+                    f.write(f"  Gamma médio: {df_cat['gamma'].mean():.3f}\n")
+                    f.write(f"  Densidade média: {df_cat['densidade'].mean():.4f}\n")
+                    f.write(f"  Grau médio: {df_cat['grau_medio'].mean():.2f}\n")
+                    f.write(f"  Qualidade power-law média (R): {df_cat['qualidade_powerlaw_R'].mean():.3f}\n")
+                    f.write(f"  Alpha médio: {df_cat['powerlaw_alpha'].mean():.3f}\n\n")
         
         print("\n" + "=" * 80)
         print("[OK] EXPERIMENTO POWER-LAW COMPLETO CONCLUIDO!")
