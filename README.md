@@ -141,6 +141,45 @@ cat comandos_teste/comandos_todos.sh | parallel -j 4
 ./comandos_teste/concatenar_resultados.sh
 ```
 
+### Estrutura de Arquivos Gerados
+
+**Cada gerador produz seus próprios arquivos de saída:**
+
+```
+resultados_experimentos/
+├── exp_simples_completo/                    # Gerador Simples
+│   ├── resultados_simples_completo.csv      # Dados completos (1.800 testes)
+│   └── resumo_simples_completo.csv          # Resumo estatístico (6 linhas)
+└── exp_powerlaw_completo/                   # Gerador Power-Law
+    ├── resultados_powerlaw_completo.csv     # Dados completos (900 testes)
+    └── resumo_powerlaw_completo.csv         # Resumo estatístico (6 linhas)
+```
+
+**Execução Paralela (por seed):**
+```
+resultados_experimentos/
+├── exp_simples_completo/
+│   ├── 1000/                              # Seed 1000
+│   │   ├── resultados_simples_completo.csv
+│   │   └── log.txt
+│   ├── 2000/                              # Seed 2000
+│   │   ├── resultados_simples_completo.csv
+│   │   └── log.txt
+│   └── ...                                # Outras seeds
+└── exp_powerlaw_completo/
+    ├── 1000/                              # Seed 1000
+    │   ├── resultados_powerlaw_completo.csv
+    │   └── log.txt
+    ├── 2000/                              # Seed 2000
+    │   ├── resultados_powerlaw_completo.csv
+    │   └── log.txt
+    └── ...                                # Outras seeds
+```
+
+**Após concatenação:**
+- **`resultados_simples_completo.csv`** - Todos os dados do gerador Simples
+- **`resultados_powerlaw_completo.csv`** - Todos os dados do gerador Power-Law
+
 ## Tipos de Grafo Suportados
 
 | Código | Tipo | Descrição |

@@ -4,10 +4,14 @@ Sistema simplificado e otimizado para execução de experimentos com geradores d
 
 ## EXPERIMENTOS DISPONÍVEIS
 
-| **ID** | **Arquivo** | **Descrição** | **Testes** | **Grafos por Teste** | **Total de Grafos** |
-|--------|-------------|---------------|------------|---------------------|-------------------|
-| **S** | `simples.py` | **Simples completo** - Todas as métricas | 1.800 | 50 | **90.000** |
-| **P** | `powerlaw.py` | **Power-Law completo** - Todas as métricas | 900 | 50 | **45.000** |
+### Organização por Gerador
+
+**Cada gerador é executado independentemente e gera seus próprios arquivos:**
+
+| **Gerador** | **Arquivo** | **Descrição** | **Testes** | **Grafos por Teste** | **Total de Grafos** | **Arquivos Gerados** |
+|-------------|-------------|---------------|------------|---------------------|-------------------|---------------------|
+| **Simples** | `simples.py` | **Simples completo** - Todas as métricas | 1.800 | 50 | **90.000** | `resultados_simples_completo.csv` + `resumo_simples_completo.csv` |
+| **Power-Law** | `powerlaw.py` | **Power-Law completo** - Todas as métricas | 900 | 50 | **45.000** | `resultados_powerlaw_completo.csv` + `resumo_powerlaw_completo.csv` |
 
 ## EXECUÇÃO RÁPIDA
 
@@ -60,26 +64,57 @@ python src/experimentos/executar-tudo.py
 
 ## ESTRUTURA DE SAÍDA
 
-Cada experimento gera:
+### Arquivos Gerados por Gerador
+
+**Cada gerador produz seus próprios arquivos de saída independentes:**
 
 ```
 resultados_experimentos/
-├── exp_simples_completo/
-│   ├── resultados_simples_completo.csv      # Dados agregados
-│   └── resumo_simples_completo.csv          # Resumo estatístico
-└── exp_powerlaw_completo/
-    ├── resultados_powerlaw_completo.csv     # Dados agregados
-    └── resumo_powerlaw_completo.csv         # Resumo estatístico
+├── exp_simples_completo/                    # GERADOR SIMPLES
+│   ├── resultados_simples_completo.csv      # Dados completos (1.800 testes)
+│   └── resumo_simples_completo.csv          # Resumo estatístico (6 linhas)
+└── exp_powerlaw_completo/                   # GERADOR POWER-LAW
+    ├── resultados_powerlaw_completo.csv     # Dados completos (900 testes)
+    └── resumo_powerlaw_completo.csv         # Resumo estatístico (6 linhas)
 ```
+
+### Execução Paralela (Organização por Seed)
+
+**Durante execução paralela, cada seed cria seu próprio diretório:**
+
+```
+resultados_experimentos/
+├── exp_simples_completo/                    # Gerador Simples
+│   ├── 1000/                              # Seed 1000
+│   │   ├── resultados_simples_completo.csv  # Dados da seed 1000
+│   │   └── log.txt                         # Log da execução
+│   ├── 2000/                              # Seed 2000
+│   │   ├── resultados_simples_completo.csv  # Dados da seed 2000
+│   │   └── log.txt                         # Log da execução
+│   └── ...                                # Outras seeds
+└── exp_powerlaw_completo/                   # Gerador Power-Law
+    ├── 1000/                              # Seed 1000
+    │   ├── resultados_powerlaw_completo.csv # Dados da seed 1000
+    │   └── log.txt                         # Log da execução
+    ├── 2000/                              # Seed 2000
+    │   ├── resultados_powerlaw_completo.csv # Dados da seed 2000
+    │   └── log.txt                         # Log da execução
+    └── ...                                # Outras seeds
+```
+
+### Concatenação Final
+
+**Após execução paralela, os arquivos são concatenados:**
+
+- **`resultados_simples_completo.csv`** - Todos os dados do gerador Simples (todas as seeds)
+- **`resultados_powerlaw_completo.csv`** - Todos os dados do gerador Power-Law (todas as seeds)
 
 ### Arquivos de Saída Detalhados
 
-| **Arquivo** | **Formato** | **Conteúdo** | **Linhas** | **Colunas** |
-|-------------|-------------|--------------|------------|-------------|
-| `resultados_simples_completo.csv` | CSV | Dados de todos os testes (1.800 linhas) | ~1.800 | ~50 |
-| `resumo_simples_completo.csv` | CSV | Médias agrupadas por tipo de grafo | 6 | ~50 |
-| `resultados_powerlaw_completo.csv` | CSV | Dados de todos os testes (900 linhas) | ~900 | ~50 |
-| `resumo_powerlaw_completo.csv` | CSV | Médias agrupadas por tipo de grafo | 6 | ~50 |
+| **Gerador** | **Arquivo Principal** | **Arquivo Resumo** | **Linhas** | **Colunas** |
+|-------------|----------------------|-------------------|------------|-------------|
+| **Simples** | `resultados_simples_completo.csv` | `resumo_simples_completo.csv` | ~1.800 | ~50 |
+| **Power-Law** | `resultados_powerlaw_completo.csv` | `resumo_powerlaw_completo.csv` | ~900 | ~50 |
 
 ### Exemplo de Estrutura dos Dados CSV
 
@@ -193,3 +228,26 @@ Os experimentos geram dados estruturados para análise:
 - **Cobertura ampla**: Qualquer valor dentro do intervalo é testado
 - **Foco conceitual**: Concentra-se nas características da rede
 - **Eficiência**: Reduz o número de testes mantendo a qualidade
+
+## RESUMO DA ORGANIZAÇÃO DE ARQUIVOS
+
+### Princípio Fundamental
+**Cada gerador produz seus próprios arquivos de saída independentes.**
+
+### Estrutura Final
+```
+resultados_experimentos/
+├── exp_simples_completo/                    # GERADOR SIMPLES
+│   ├── resultados_simples_completo.csv      # Dados completos (1.800 testes)
+│   └── resumo_simples_completo.csv          # Resumo estatístico (6 linhas)
+└── exp_powerlaw_completo/                   # GERADOR POWER-LAW
+    ├── resultados_powerlaw_completo.csv     # Dados completos (900 testes)
+    └── resumo_powerlaw_completo.csv         # Resumo estatístico (6 linhas)
+```
+
+### Vantagens desta Organização
+1. **Separação Clara**: Cada gerador tem seus próprios arquivos
+2. **Independência**: Execução de um gerador não afeta o outro
+3. **Facilidade de Análise**: Dados organizados por tipo de gerador
+4. **Paralelização**: Cada gerador pode ser executado independentemente
+5. **Concatenação Simples**: Estrutura clara para agregação de resultados
