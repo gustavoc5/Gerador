@@ -1,5 +1,21 @@
+# Dependências principais
 numpy>=1.21.0
+networkx>=2.8.0
+pandas>=1.3.0
+scipy>=1.7.0
+
+# Bibliotecas de grafos
 python-igraph>=0.10.0
-matplotlib>=3.5.0
+
+# Análise de distribuições
 powerlaw>=1.5
-pytest
+
+# Visualização
+matplotlib>=3.5.0
+
+# Testes
+pytest>=6.0.0
+
+# Dependências adicionais para compatibilidade
+setuptools>=65.0.0
+wheel>=0.37.0

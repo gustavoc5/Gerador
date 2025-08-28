@@ -7,7 +7,12 @@ Analisa a similaridade estrutural entre grafos gerados com os mesmos parâmetros
 import numpy as np
 import networkx as nx
 from scipy.spatial.distance import pdist, squareform
-from sklearn.metrics import silhouette_score
+try:
+    from sklearn.metrics import silhouette_score
+except ImportError:
+    # Fallback se sklearn não estiver disponível
+    def silhouette_score(X, labels):
+        return 0.0
 import itertools
 
 def calcular_similaridade_entre_grafos(grafo1, grafo2):

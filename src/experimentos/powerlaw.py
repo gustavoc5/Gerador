@@ -19,9 +19,9 @@ import os
 import sys
 import random
 import time
-import psutil
 import pandas as pd
 import numpy as np
+import networkx as nx
 from datetime import datetime
 
 # Adiciona o diretório src ao path
@@ -49,10 +49,7 @@ def gera_gamma_aleatorio(categoria):
     else:
         raise ValueError(f"Categoria inválida: {categoria}")
 
-def monitora_memoria():
-    """Monitora o uso de memória do processo atual."""
-    process = psutil.Process(os.getpid())
-    return process.memory_info().rss / 1024 / 1024  # MB
+
 
 def calcula_qualidade_powerlaw(graus):
     """Calcula a qualidade do ajuste power-law."""
@@ -80,7 +77,7 @@ def calcula_qualidade_powerlaw(graus):
         print(f"ERRO no cálculo power-law: {e}")
         return 0.0, 0.0, 0.0, 0.0
 
-def calcula_metricas_completas(matriz, tipo_grafo, tempo_geracao, graus=None):
+def calcula_metricas_completas(matriz, tipo_grafo, graus=None):
     """Calcula todas as métricas possíveis do grafo."""
     import networkx as nx
     
@@ -102,7 +99,6 @@ def calcula_metricas_completas(matriz, tipo_grafo, tempo_geracao, graus=None):
     metricas['num_vertices'] = G.number_of_nodes()
     metricas['num_arestas'] = G.number_of_edges()
     metricas['tipo_detectado'] = tipo_grafo
-    metricas['tempo_geracao'] = tempo_geracao
     
     # Densidade
     if G.number_of_nodes() > 1:
@@ -213,8 +209,7 @@ def calcula_metricas_completas(matriz, tipo_grafo, tempo_geracao, graus=None):
         metricas['powerlaw_alpha'] = alpha
         metricas['powerlaw_xmin'] = xmin
         
-        # Eficiência da geração power-law
-        metricas['eficiencia_powerlaw'] = metricas['num_arestas'] / tempo_geracao if tempo_geracao > 0 else 0
+
         
         # Razão vértices/arestas
         metricas['razao_vertices_arestas'] = metricas['num_vertices'] / metricas['num_arestas'] if metricas['num_arestas'] > 0 else 0
@@ -223,7 +218,7 @@ def calcula_metricas_completas(matriz, tipo_grafo, tempo_geracao, graus=None):
         metricas['qualidade_powerlaw_p_value'] = 1.0
         metricas['powerlaw_alpha'] = 0.0
         metricas['powerlaw_xmin'] = 0.0
-        metricas['eficiencia_powerlaw'] = 0.0
+
         metricas['razao_vertices_arestas'] = 0.0
     
     return metricas
@@ -231,9 +226,6 @@ def calcula_metricas_completas(matriz, tipo_grafo, tempo_geracao, graus=None):
 def executa_teste_powerlaw_completo(tipo, numV, gamma, seed):
     """Executa teste do gerador power-law com todas as métricas."""
     try:
-        memoria_inicial = monitora_memoria()
-        
-        start_time = time.time()
         
         # Gera o grafo (desequilibrado e grau_min são intrínsecos ao gerador)
         dirigido = tipo in [1, 21, 31]
@@ -245,25 +237,12 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed):
         arestas, G, graus = resultado
         matriz = nx.to_numpy_array(G)
         tipo_detectado = tipo
-        tempo_geracao = time.time() - start_time
-        
-        memoria_pos_geracao = monitora_memoria()
         
         # Calcula métricas completas
-        metricas = calcula_metricas_completas(matriz, tipo_detectado, tempo_geracao, graus)
+        metricas = calcula_metricas_completas(matriz, tipo_detectado, graus)
         
-        memoria_pos_matriz = monitora_memoria()
-        memoria_final = monitora_memoria()
-        memoria_pico = max(memoria_inicial, memoria_pos_geracao, memoria_pos_matriz, memoria_final)
-        
-        # Adiciona métricas de memória
+        # Adiciona métricas básicas
         metricas.update({
-            'memoria_inicial_mb': memoria_inicial,
-            'memoria_pos_geracao_mb': memoria_pos_geracao,
-            'memoria_pos_matriz_mb': memoria_pos_matriz,
-            'memoria_final_mb': memoria_final,
-            'memoria_pico_mb': memoria_pico,
-            'memoria_incremento_mb': memoria_pico - memoria_inicial,
             'taxa_sucesso': 1.0,
             'limite_atingido': False
         })
@@ -286,13 +265,6 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed):
             'numV': numV,
             'gamma': gamma,
             'seed': seed,
-            'tempo_geracao': 0.0,
-            'memoria_inicial_mb': monitora_memoria(),
-            'memoria_pos_geracao_mb': 0.0,
-            'memoria_pos_matriz_mb': 0.0,
-            'memoria_final_mb': 0.0,
-            'memoria_pico_mb': 0.0,
-            'memoria_incremento_mb': 0.0,
             'taxa_sucesso': 0.0,
             'limite_atingido': True,
             'erro': 'MemoryError'
@@ -304,13 +276,7 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed):
             'numV': numV,
             'gamma': gamma,
             'seed': seed,
-            'tempo_geracao': 0.0,
-            'memoria_inicial_mb': monitora_memoria(),
-            'memoria_pos_geracao_mb': 0.0,
-            'memoria_pos_matriz_mb': 0.0,
-            'memoria_final_mb': 0.0,
-            'memoria_pico_mb': 0.0,
-            'memoria_incremento_mb': 0.0,
+
             'taxa_sucesso': 0.0,
             'limite_atingido': True,
             'erro': str(e)
@@ -368,7 +334,7 @@ def main():
     resultados = []
     teste_atual = 0
     
-    start_time_experimento = time.time()
+
     
     for tipo in TIPOS_GRAFOS:
         for numV in TAMANHOS:
@@ -391,12 +357,11 @@ def main():
                         if resultado['limite_atingido']:
                             print(f"  [LIMITE] {resultado.get('erro', 'Erro desconhecido')}")
                         else:
-                            print(f"  [OK] Tempo: {resultado['tempo_geracao']:.3f}s - R={resultado['qualidade_powerlaw_R']:.3f} - Mem: {resultado['memoria_pico_mb']:.1f}MB")
+                            print(f"  [OK] R={resultado['qualidade_powerlaw_R']:.3f}")
                     else:
                         print(f"  [ERRO] Falha")
     
-    end_time_experimento = time.time()
-    tempo_total = end_time_experimento - start_time_experimento
+
     
     # Salva resultados
     if resultados:
@@ -407,51 +372,55 @@ def main():
         df.to_csv(csv_file, index=False)
         
         # Arquivo de resumo
-        resumo_file = os.path.join(args.output_dir, 'resumo_powerlaw_completo.txt')
-        with open(resumo_file, 'w', encoding='utf-8') as f:
-            f.write("EXPERIMENTO POWER-LAW COMPLETO - TODAS AS MÉTRICAS\n")
-            f.write("=" * 60 + "\n")
-            f.write(f"Data/Hora: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
-            f.write(f"Total de testes: {len(resultados)}/{total_combinacoes}\n")
-            f.write(f"Taxa de sucesso: {len(resultados)/total_combinacoes*100:.1f}%\n")
-            f.write(f"Tempo total: {tempo_total:.2f} segundos\n")
-            f.write(f"Tempo médio por teste: {tempo_total/len(resultados):.3f} segundos\n\n")
-            
-            # Estatísticas por tipo de grafo
-            for tipo in TIPOS_GRAFOS:
-                df_tipo = df[df['tipo'] == tipo]
-                if len(df_tipo) > 0:
-                    f.write(f"TIPO {tipo}:\n")
-                    f.write(f"  Testes: {len(df_tipo)}\n")
-                    f.write(f"  Tempo médio: {df_tipo['tempo_geracao'].mean():.3f}s\n")
-                    f.write(f"  Densidade média: {df_tipo['densidade'].mean():.4f}\n")
-                    f.write(f"  Grau médio: {df_tipo['grau_medio'].mean():.2f}\n")
-                    f.write(f"  Qualidade power-law média (R): {df_tipo['qualidade_powerlaw_R'].mean():.3f}\n")
-                    f.write(f"  Memória pico média: {df_tipo['memoria_pico_mb'].mean():.1f}MB\n\n")
-            
-            # Estatísticas por categoria gamma
-            for categoria in CATEGORIAS_GAMMA:
-                if categoria == 'denso':
-                    df_cat = df[(df['gamma'] >= 2.0) & (df['gamma'] < 2.3)]
-                elif categoria == 'moderado':
-                    df_cat = df[(df['gamma'] >= 2.3) & (df['gamma'] < 2.7)]
-                elif categoria == 'esparso':
-                    df_cat = df[(df['gamma'] >= 2.7) & (df['gamma'] <= 3.0)]
-                
-                if len(df_cat) > 0:
-                    f.write(f"CATEGORIA {categoria.upper()} (γ ∈ {[2.0, 2.3] if categoria == 'denso' else [2.3, 2.7] if categoria == 'moderado' else [2.7, 3.0]}):\n")
-                    f.write(f"  Testes: {len(df_cat)}\n")
-                    f.write(f"  Gamma médio: {df_cat['gamma'].mean():.3f}\n")
-                    f.write(f"  Densidade média: {df_cat['densidade'].mean():.4f}\n")
-                    f.write(f"  Grau médio: {df_cat['grau_medio'].mean():.2f}\n")
-                    f.write(f"  Qualidade power-law média (R): {df_cat['qualidade_powerlaw_R'].mean():.3f}\n")
-                    f.write(f"  Alpha médio: {df_cat['powerlaw_alpha'].mean():.3f}\n\n")
+        resumo_file = os.path.join(args.output_dir, 'resumo_powerlaw_completo.csv')
+        
+        # Cria resumo agrupado por tipo
+        resumo_por_tipo = df.groupby('tipo').agg({
+
+            'densidade': 'mean',
+            'grau_medio': 'mean',
+            'grau_max': 'mean',
+            'grau_min': 'mean',
+            'grau_desvio': 'mean',
+            'grau_mediana': 'mean',
+            'num_componentes': 'mean',
+            'conectividade': 'mean',
+            'pagerank_medio': 'mean',
+            'pagerank_max': 'mean',
+            'pagerank_min': 'mean',
+            'pagerank_desvio': 'mean',
+            'pagerank_mediana': 'mean',
+            'closeness_medio': 'mean',
+            'closeness_max': 'mean',
+            'closeness_min': 'mean',
+            'closeness_desvio': 'mean',
+            'closeness_mediana': 'mean',
+            'betweenness_medio': 'mean',
+            'betweenness_max': 'mean',
+            'betweenness_min': 'mean',
+            'betweenness_desvio': 'mean',
+            'betweenness_mediana': 'mean',
+            'diametro': 'mean',
+            'raio': 'mean',
+            'distancia_media': 'mean',
+            'num_comunidades_greedy': 'mean',
+            'modularidade_greedy': 'mean',
+            'num_comunidades_label': 'mean',
+            'modularidade_label': 'mean',
+            'razao_vertices_arestas': 'mean',
+            'taxa_sucesso': 'mean',
+            'qualidade_powerlaw_R': 'mean',
+            'powerlaw_alpha': 'mean',
+            'limite_atingido': 'sum'
+        }).reset_index()
+        
+        resumo_por_tipo.to_csv(resumo_file, index=False)
         
         print("\n" + "=" * 80)
         print("[OK] EXPERIMENTO POWER-LAW COMPLETO CONCLUIDO!")
         print(f"[RESULTADOS] Salvos em: {csv_file}")
         print(f"[RESUMO] Salvo em: {resumo_file}")
-        print(f"[TEMPO] Total: {tempo_total:.2f} segundos")
+
         print(f"[SUCESSO] Taxa: {len(resultados)/total_combinacoes*100:.1f}%")
         print("=" * 80)
     else:

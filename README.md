@@ -19,12 +19,11 @@ Gerador/
 │   │   ├── constants.py          # Constantes e configurações
 │   │   └── test_pwl.py           # Testes unitários
 │   └── experimentos/             # Sistema de experimentos
-│       ├── experimento_simples_completo.py    # Experimento simples
-│       ├── experimento_powerlaw_completo.py   # Experimento power-law
+│       ├── simples.py            # Experimento simples completo
+│       ├── powerlaw.py           # Experimento power-law completo
+│       ├── similaridade.py       # Métricas de equivalência estrutural
 │       ├── gerar_comandos_paralelos.py        # Gerador de comandos
-│       ├── metrica_equivalencia_replicacoes.py # Métricas de equivalência
-│       ├── executar_todos_experimentos.py     # Executor geral
-│       └── README_experimentos.md             # Documentação dos experimentos
+│       └── executar-tudo.py      # Executor geral
 ├── comandos_teste/               # Scripts de execução paralela
 │   ├── comandos_todos.sh         # Comandos para execução
 │   ├── concatenar_resultados.sh  # Script de concatenação
@@ -67,8 +66,17 @@ Gerador/
 ## Instalação e Configuração
 
 ### 1. Instalação das Dependências
+
+**Opção A: Instalação Manual (Recomendada)**
 ```bash
 pip install -r requirements.txt
+```
+
+**Opção B: Instalação Individual**
+```bash
+pip install numpy>=1.21.0 networkx>=2.8.0 pandas>=1.3.0
+pip install scipy>=1.7.0 python-igraph>=0.10.0
+pip install powerlaw>=1.5 matplotlib>=3.5.0 pytest>=6.0.0
 ```
 
 ### 2. Verificação da Instalação
@@ -108,10 +116,13 @@ python src/pwl/pwl.py --numV 1000 --categoria denso --seed 456
 ### Execução Individual
 ```bash
 # Experimento simples completo
-python src/experimentos/experimento_simples_completo.py --seeds 1000 2000
+python src/experimentos/simples.py --seeds 1000 2000
 
 # Experimento power-law completo
-python src/experimentos/experimento_powerlaw_completo.py --seeds 1000 2000
+python src/experimentos/powerlaw.py --seeds 1000 2000
+
+# Executar ambos os experimentos
+python src/experimentos/executar-tudo.py --teste_rapido
 ```
 
 ### Execução Paralela
@@ -159,7 +170,7 @@ cat comandos_teste/comandos_todos.sh | parallel -j 4
 - Número de comunidades detectadas
 
 ### Métricas Específicas
-- **Simples**: Eficiência de geração, razão vértices/arestas
+- **Simples**: Razão vértices/arestas
 - **Power-Law**: Qualidade do ajuste (R², p-valor), expoente alpha, xmin
 
 ### Métricas de Equivalência Estrutural
@@ -167,28 +178,10 @@ cat comandos_teste/comandos_todos.sh | parallel -j 4
 - Consistência estrutural
 - Detecção de outliers
 
-## Performance e Recursos
-
-### Estimativas de Tempo
-- **Gerador Simples**: 2-4 horas por seed (1.800 testes)
-- **Gerador Power-Law**: 1-2 horas por seed (900 testes)
-- **Total**: 20-40 horas para execução completa
-
-### Requisitos de Memória
-- **Gerador Simples**: 4-8 GB por execução
-- **Gerador Power-Law**: 2-4 GB por execução
-- **Total Paralelo**: 8-16 GB (dependendo do número de execuções)
-
-### Armazenamento
-- **Total**: 750 MB - 1.5 GB para todos os resultados
-- **Formato**: CSV com métricas detalhadas
-- **Estrutura**: Organização por seeds e experimentos
-
 ## Documentação Técnica
 
 Para informações detalhadas sobre a metodologia experimental e estratégia de paralelização, consulte:
 
-- `DOCUMENTO_TECNICO_EXPERIMENTOS.md` - Documentação técnica completa
 - `src/experimentos/README_experimentos.md` - Documentação dos experimentos
 - `comandos_teste/README.md` - Instruções de execução paralela
 

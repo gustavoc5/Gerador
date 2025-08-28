@@ -25,7 +25,6 @@ import os
 import sys
 import random
 import time
-import psutil
 import pandas as pd
 import numpy as np
 from datetime import datetime
@@ -37,12 +36,9 @@ from simples.gerador import geraDataset
 from simples.utils import criaMatrizAdjacencias, tipoGrafo
 from simples.constants import TIPOS_GRAFOS, TIPOS_VALIDOS, DENSIDADE_ESPARSA_MAX, DENSIDADE_DENSA_MIN
 
-def monitora_memoria():
-    """Monitora o uso de memória do processo atual."""
-    process = psutil.Process(os.getpid())
-    return process.memory_info().rss / 1024 / 1024  # MB
 
-def calcula_metricas_completas(matriz, tipo_grafo, tempo_geracao):
+
+def calcula_metricas_completas(matriz, tipo_grafo):
     """Calcula todas as métricas possíveis do grafo."""
     import networkx as nx
     
@@ -64,7 +60,6 @@ def calcula_metricas_completas(matriz, tipo_grafo, tempo_geracao):
     metricas['num_vertices'] = G.number_of_nodes()
     metricas['num_arestas'] = G.number_of_edges()
     metricas['tipo_detectado'] = tipo_grafo
-    metricas['tempo_geracao'] = tempo_geracao
     
     # Densidade
     if G.number_of_nodes() > 1:
@@ -162,20 +157,14 @@ def calcula_metricas_completas(matriz, tipo_grafo, tempo_geracao):
         metricas['modularidade_label'] = 0.0
     
     # ===== MÉTRICAS ESPECÍFICAS DO SIMPLES =====
-    # Eficiência da geração
-    metricas['eficiencia_geracao'] = metricas['num_arestas'] / tempo_geracao if tempo_geracao > 0 else 0
-    
     # Razão vértices/arestas
     metricas['razao_vertices_arestas'] = metricas['num_vertices'] / metricas['num_arestas'] if metricas['num_arestas'] > 0 else 0
     
     return metricas
 
 def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, preferencia_densidade, numC):
-    """Executa teste completo do gerador simples com 10 grafos."""
+    """Executa teste completo do gerador simples com 50 grafos."""
     try:
-        # Monitora memória inicial
-        memoria_inicial = monitora_memoria()
-        start_time = time.time()
         
         # Gera 50 grafos com os mesmos parâmetros
         NUM_GRAFOS_PADRAO = 50
@@ -184,9 +173,6 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
         if not datasets or len(datasets) == 0:
             return None
         
-        # Monitora memória após geração
-        memoria_pos_geracao = monitora_memoria()
-        
         # Analisa todos os grafos gerados
         todas_metricas = []
         grafos_networkx = []  # Lista para análise de equivalência estrutural
@@ -194,7 +180,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
         for i, arestas in enumerate(datasets):
             matriz = criaMatrizAdjacencias(arestas, numV, tipo)
             tipo_detectado = tipoGrafo(matriz)
-            metricas_grafo = calcula_metricas_completas(matriz, tipo_detectado, 0)  # Tempo individual não importa
+            metricas_grafo = calcula_metricas_completas(matriz, tipo_detectado)
             todas_metricas.append(metricas_grafo)
             
             # Converte para NetworkX para análise de equivalência estrutural
@@ -212,11 +198,6 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
             
             grafos_networkx.append(G_nx)
         
-        # Monitora memória após criação das matrizes
-        memoria_pos_matriz = monitora_memoria()
-        
-        tempo_geracao = time.time() - start_time
-        
         # Calcula médias de todas as métricas
         metricas_medias = {}
         for chave in todas_metricas[0].keys():
@@ -229,12 +210,11 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
                 else:
                     metricas_medias[chave] = 0.0
         
-        # Atualiza tempo de geração (tempo total para gerar todos os grafos)
-        metricas_medias['tempo_geracao'] = tempo_geracao
+
         
         # Analisa equivalência estrutural entre replicações
         try:
-            from metrica_equivalencia_replicacoes import analisar_equivalencia_replicacoes, detectar_outliers_estruturais
+            from similaridade import analisar_equivalencia_replicacoes, detectar_outliers_estruturais
             
             metricas_equivalencia = analisar_equivalencia_replicacoes(grafos_networkx)
             outliers, metricas_outliers = detectar_outliers_estruturais(grafos_networkx)
@@ -253,17 +233,8 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
                 'indices_outliers': "[]"
             })
         
-        # Monitora memória final
-        memoria_final = monitora_memoria()
-        
-        # Adiciona métricas de memória
+        # Adiciona métricas básicas
         metricas_medias.update({
-            'memoria_inicial_mb': memoria_inicial,
-            'memoria_pos_geracao_mb': memoria_pos_geracao,
-            'memoria_pos_matriz_mb': memoria_pos_matriz,
-            'memoria_final_mb': memoria_final,
-            'memoria_pico_mb': max(memoria_inicial, memoria_pos_geracao, memoria_pos_matriz, memoria_final),
-            'memoria_incremento_mb': memoria_final - memoria_inicial,
             'taxa_sucesso': len(datasets) / NUM_GRAFOS_PADRAO,
             'limite_atingido': False
         })
@@ -293,14 +264,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
             'estrategia_arestas': estrategia_arestas,
             'preferencia_densidade': preferencia_densidade,
             'numC': numC,
-            'num_grafos_gerados': 10,
-            'tempo_geracao': 0.0,
-            'memoria_inicial_mb': monitora_memoria(),
-            'memoria_pos_geracao_mb': 0.0,
-            'memoria_pos_matriz_mb': 0.0,
-            'memoria_final_mb': 0.0,
-            'memoria_pico_mb': 0.0,
-            'memoria_incremento_mb': 0.0,
+            'num_grafos_gerados': 50,
             'taxa_sucesso': 0.0,
             'limite_atingido': True,
             'erro': 'MemoryError'
@@ -315,14 +279,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
             'estrategia_arestas': estrategia_arestas,
             'preferencia_densidade': preferencia_densidade,
             'numC': numC,
-            'num_grafos_gerados': 10,
-            'tempo_geracao': 0.0,
-            'memoria_inicial_mb': monitora_memoria(),
-            'memoria_pos_geracao_mb': 0.0,
-            'memoria_pos_matriz_mb': 0.0,
-            'memoria_final_mb': 0.0,
-            'memoria_pico_mb': 0.0,
-            'memoria_incremento_mb': 0.0,
+            'num_grafos_gerados': 50,
             'taxa_sucesso': 0.0,
             'limite_atingido': True,
             'erro': str(e)
@@ -344,23 +301,23 @@ def main():
     
     args = parser.parse_args()
     
-         # Configurações do experimento
-     TIPOS_GRAFOS = [0, 1, 20, 21, 30, 31]  # Todos os tipos
-     
-     if args.teste_rapido:
-         TAMANHOS = [100, 1000]
-         PREFERENCIAS_DENSIDADE = [0, 1, 2]  # Sem preferência, Esparso, Denso
-         NUM_COMPONENTES = [0, 1]  # Aleatório, Conexo
-         SEEDS = [1000, 2000]
-     else:
-         TAMANHOS = [100, 1000, 10000]
-         if args.max_vertices >= 100000:
-             TAMANHOS.append(100000)
-         if args.max_vertices >= 1000000:
-             TAMANHOS.append(1000000)
-         PREFERENCIAS_DENSIDADE = [0, 1, 2]  # Sem preferência, Esparso, Denso
-         NUM_COMPONENTES = [0, 1]  # Aleatório, Conexo
-         SEEDS = args.seeds
+    # Configurações do experimento
+    TIPOS_GRAFOS = [0, 1, 20, 21, 30, 31]  # Todos os tipos
+    
+    if args.teste_rapido:
+        TAMANHOS = [100, 1000]
+        PREFERENCIAS_DENSIDADE = [0, 1, 2]  # Sem preferência, Esparso, Denso
+        NUM_COMPONENTES = [0, 1]  # Aleatório, Conexo
+        SEEDS = [1000, 2000]
+    else:
+        TAMANHOS = [100, 1000, 10000]
+        if args.max_vertices >= 100000:
+            TAMANHOS.append(100000)
+        if args.max_vertices >= 1000000:
+            TAMANHOS.append(1000000)
+        PREFERENCIAS_DENSIDADE = [0, 1, 2]  # Sem preferência, Esparso, Denso
+        NUM_COMPONENTES = [0, 1]  # Aleatório, Conexo
+        SEEDS = args.seeds
     
     # Cria diretório de saída
     os.makedirs(args.output_dir, exist_ok=True)
@@ -368,67 +325,66 @@ def main():
     print("=" * 80)
     print("EXPERIMENTO SIMPLES COMPLETO - TODAS AS MÉTRICAS")
     print("=" * 80)
-         print(f"Tipos de grafo: {len(TIPOS_GRAFOS)} tipos")
-     print(f"Tamanhos: {TAMANHOS}")
-     print(f"Preferências de densidade: {PREFERENCIAS_DENSIDADE} (0=Sem preferência, 1=Esparso, 2=Denso)")
-     print(f"Número de componentes: {NUM_COMPONENTES} (0=Aleatório, 1=Conexo)")
-     print(f"Grafos por teste: 50 (valor fixo)")
-     print(f"Seeds: {SEEDS}")
-     
-     # Calcula total de combinações
-     total_combinacoes = (len(TIPOS_GRAFOS) * len(TAMANHOS) * 
-                         len(PREFERENCIAS_DENSIDADE) * len(NUM_COMPONENTES) * 
-                         len(SEEDS))
-         print(f"Total de combinações: {total_combinacoes}")
-     print(f"Total de grafos gerados: {total_combinacoes * 50}")
+    print(f"Tipos de grafo: {len(TIPOS_GRAFOS)} tipos")
+    print(f"Tamanhos: {TAMANHOS}")
+    print(f"Preferências de densidade: {PREFERENCIAS_DENSIDADE} (0=Sem preferência, 1=Esparso, 2=Denso)")
+    print(f"Número de componentes: {NUM_COMPONENTES} (0=Aleatório, 1=Conexo)")
+    print(f"Grafos por teste: 50 (valor fixo)")
+    print(f"Seeds: {SEEDS}")
+    
+    # Calcula total de combinações
+    total_combinacoes = (len(TIPOS_GRAFOS) * len(TAMANHOS) * 
+                        len(PREFERENCIAS_DENSIDADE) * len(NUM_COMPONENTES) * 
+                        len(SEEDS))
+    print(f"Total de combinações: {total_combinacoes}")
+    print(f"Total de grafos gerados: {total_combinacoes * 50}")
     print(f"Diretório de saída: {args.output_dir}")
     print("=" * 80)
     
     resultados = []
     teste_atual = 0
     
-    start_time_experimento = time.time()
+
     
-         for tipo in TIPOS_GRAFOS:
-         for numV in TAMANHOS:
-             for pref_dens in PREFERENCIAS_DENSIDADE:
-                 for numC in NUM_COMPONENTES:
-                     for seed in SEEDS:
-                                teste_atual += 1
-                                
-                                                                 # Calcula número de arestas baseado na preferência de densidade
-                                 max_arestas = numV * (numV - 1) // 2
-                                 min_arestas = max(1, numV-1)
-                                 
-                                 if pref_dens == 0:  # Sem preferência
-                                     numA = random.randint(min_arestas, max_arestas)
-                                 elif pref_dens == 1:  # Esparso (d ≤ 0.2)
-                                     numA = random.randint(min_arestas, int(max_arestas * DENSIDADE_ESPARSA_MAX))
-                                 else:  # Denso (d ≥ 0.8)
-                                     numA = random.randint(int(max_arestas * DENSIDADE_DENSA_MIN), max_arestas)
-                                 
-                                 # Mapeia preferência para texto
-                                 pref_texto = {0: "Sem preferência", 1: "Esparso", 2: "Denso"}[pref_dens]
-                                 comp_texto = {0: "Aleatório", 1: "Conexo"}[numC]
-                                 
-                                 print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {pref_texto} - {comp_texto} - Seed={seed}")
-                                 
-                                 resultado = executa_teste_simples_completo(
-                                     tipo, numV, numA, seed, "Proporcional", pref_dens, 
-                                     numC
-                                 )
-                                
-                                if resultado:
-                                    resultados.append(resultado)
-                                    if resultado['limite_atingido']:
-                                        print(f"  [LIMITE] {resultado.get('erro', 'Erro desconhecido')}")
-                                    else:
-                                        print(f"  [OK] Tempo: {resultado['tempo_geracao']:.3f}s - Mem: {resultado['memoria_pico_mb']:.1f}MB - Sucesso: {resultado['taxa_sucesso']:.1%} - Consistência: {resultado.get('consistencia_estrutural', 0):.3f}")
-                                else:
-                                    print(f"  [ERRO] Falha")
+    for tipo in TIPOS_GRAFOS:
+        for numV in TAMANHOS:
+            for pref_dens in PREFERENCIAS_DENSIDADE:
+                for numC in NUM_COMPONENTES:
+                    for seed in SEEDS:
+                        teste_atual += 1
+                        
+                        # Calcula número de arestas baseado na preferência de densidade
+                        max_arestas = numV * (numV - 1) // 2
+                        min_arestas = max(1, numV-1)
+                        
+                        if pref_dens == 0:  # Sem preferência
+                            numA = random.randint(min_arestas, max_arestas)
+                        elif pref_dens == 1:  # Esparso (d ≤ 0.2)
+                            numA = random.randint(min_arestas, int(max_arestas * DENSIDADE_ESPARSA_MAX))
+                        else:  # Denso (d ≥ 0.8)
+                            numA = random.randint(int(max_arestas * DENSIDADE_DENSA_MIN), max_arestas)
+                        
+                        # Mapeia preferência para texto
+                        pref_texto = {0: "Sem preferência", 1: "Esparso", 2: "Denso"}[pref_dens]
+                        comp_texto = {0: "Aleatório", 1: "Conexo"}[numC]
+                        
+                        print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {pref_texto} - {comp_texto} - Seed={seed}")
+                        
+                        resultado = executa_teste_simples_completo(
+                            tipo, numV, numA, seed, "Proporcional", pref_dens, 
+                            numC
+                        )
+                        
+                        if resultado:
+                            resultados.append(resultado)
+                            if resultado['limite_atingido']:
+                                print(f"  [LIMITE] {resultado.get('erro', 'Erro desconhecido')}")
+                            else:
+                                print(f"  [OK] Sucesso: {resultado['taxa_sucesso']:.1%} - Consistência: {resultado.get('consistencia_estrutural', 0):.3f}")
+                        else:
+                            print(f"  [ERRO] Falha")
     
-    end_time_experimento = time.time()
-    tempo_total = end_time_experimento - start_time_experimento
+
     
     # Salva resultados
     if resultados:
@@ -474,9 +430,7 @@ def main():
             'modularidade_greedy': 'mean',
             'num_comunidades_label': 'mean',
             'modularidade_label': 'mean',
-            'eficiencia_geracao': 'mean',
             'razao_vertices_arestas': 'mean',
-            'memoria_pico_mb': 'mean',
             'taxa_sucesso': 'mean',
             'consistencia_estrutural': 'mean',
             'similaridade_media': 'mean',
@@ -490,9 +444,8 @@ def main():
         print("[OK] EXPERIMENTO SIMPLES COMPLETO CONCLUIDO!")
         print(f"[RESULTADOS] Salvos em: {csv_file}")
         print(f"[RESUMO] Salvo em: {resumo_file}")
-        print(f"[TEMPO] Total: {tempo_total:.2f} segundos")
         print(f"[SUCESSO] Taxa: {len(resultados)/total_combinacoes*100:.1f}%")
-                 print(f"[GRAFOS] Total gerados: {len(resultados) * 50}")
+        print(f"[GRAFOS] Total gerados: {len(resultados) * 50}")
         print(f"[CONSISTÊNCIA] Média: {df['consistencia_estrutural'].mean():.3f}")
         print("=" * 80)
     else:
