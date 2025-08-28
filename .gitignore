@@ -41,6 +41,7 @@ resultados_teste/
 testes_automaticos/
 testes_rapidos/
 testes_*
+resultados_experimentos/
 *.txt
 *.csv
 *.png

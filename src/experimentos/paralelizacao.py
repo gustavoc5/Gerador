@@ -33,7 +33,7 @@ def gerar_comandos_simples(main_dir, seeds, output_file):
     NUM_COMPONENTES = [0, 1]  # 0=Aleatório, 1=Conexo
     
     # Script Python
-    script_path = os.path.join(main_dir, "src/experimentos/experimento_simples_completo.py")
+    script_path = os.path.join(main_dir, "src/experimentos/simples.py")
     
     comandos = []
     
@@ -79,7 +79,7 @@ def gerar_comandos_powerlaw(main_dir, seeds, output_file):
     CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
     
     # Script Python
-    script_path = os.path.join(main_dir, "src/experimentos/experimento_powerlaw_completo.py")
+    script_path = os.path.join(main_dir, "src/experimentos/powerlaw.py")
     
     comandos = []
     
@@ -127,8 +127,8 @@ def gerar_comandos_todos(main_dir, seeds, output_file):
     CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
     
     # Scripts Python
-    script_simples = os.path.join(main_dir, "src/experimentos/experimento_simples_completo.py")
-    script_powerlaw = os.path.join(main_dir, "src/experimentos/experimento_powerlaw_completo.py")
+    script_simples = os.path.join(main_dir, "src/experimentos/simples.py")
+    script_powerlaw = os.path.join(main_dir, "src/experimentos/powerlaw.py")
     
     comandos = []
     
