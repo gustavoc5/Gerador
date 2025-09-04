@@ -37,6 +37,7 @@ ENV/
 Thumbs.db
 
 # Project specific
+codigos/                           # Pasta com códigos antigos/obsoletos
 resultados_teste/
 testes_automaticos/
 testes_rapidos/
