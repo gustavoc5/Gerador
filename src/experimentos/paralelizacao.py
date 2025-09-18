@@ -79,7 +79,7 @@ def gerar_comandos_powerlaw(main_dir, seeds, output_file):
     CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
     
     # Script Python
-    script_path = os.path.join(main_dir, "src/experimentos/powerlaw.py")
+    script_path = os.path.join(main_dir, "src/experimentos/power_law.py")
     
     comandos = []
     
@@ -128,7 +128,7 @@ def gerar_comandos_todos(main_dir, seeds, output_file):
     
     # Scripts Python
     script_simples = os.path.join(main_dir, "src/experimentos/simples.py")
-    script_powerlaw = os.path.join(main_dir, "src/experimentos/powerlaw.py")
+    script_powerlaw = os.path.join(main_dir, "src/experimentos/power_law.py")
     
     comandos = []
     

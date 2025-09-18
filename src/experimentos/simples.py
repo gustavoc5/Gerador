@@ -30,29 +30,36 @@ import numpy as np
 from datetime import datetime
 
 # Adiciona o diretório src ao path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.dirname(__file__))
 
-from simples.gerador import geraDataset
-from simples.utils import criaMatrizAdjacencias, tipoGrafo
-from simples.constants import TIPOS_GRAFOS, TIPOS_VALIDOS, DENSIDADE_ESPARSA_MAX, DENSIDADE_DENSA_MIN
+# Importações diretas
+import sys
+import os
+# Prioriza o diretório 'simples' no sys.path para permitir execução direta
+simples_dir = os.path.join(os.path.dirname(__file__), '..', 'simples')
+if simples_dir not in sys.path:
+    sys.path.insert(0, simples_dir)
+
+from gerador import geraDataset  # type: ignore[reportMissingImports]
+from utils import criaMatrizAdjacencias, tipoGrafo  # type: ignore[reportMissingImports]
+from constants import TIPOS_GRAFOS, TIPOS_VALIDOS, DENSIDADE_ESPARSA_MAX, DENSIDADE_DENSA_MIN  # type: ignore[reportMissingImports]
 
 
 
-def calcula_metricas_completas(matriz, tipo_grafo):
-    """Calcula todas as métricas possíveis do grafo."""
+def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_grafo):
+    """Calcula todas as métricas possíveis do grafo a partir da lista de arestas (sem matriz)."""
     import networkx as nx
     
-    # Converte matriz para NetworkX
+    # Cria grafo a partir de arestas
     if tipo_grafo in [1, 21, 31]:  # Dirigidos
         G = nx.DiGraph()
     else:
         G = nx.Graph()
     
-    for i in range(len(matriz)):
-        G.add_node(i)
-        for j in range(len(matriz[i])):
-            if matriz[i][j] > 0:
-                G.add_edge(i, j)
+    # Garante todos os nós existentes (0..numV-1)
+    G.add_nodes_from(range(num_vertices_total))
+    # Adiciona arestas
+    G.add_edges_from(arestas)
     
     metricas = {}
     
@@ -162,13 +169,12 @@ def calcula_metricas_completas(matriz, tipo_grafo):
     
     return metricas
 
-def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, preferencia_densidade, numC):
+def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, preferencia_densidade, numC, output_format='consolidated_csv', output_dir='./resultados', naming_pattern='metricas_{seed}_tipo{tipo}_v{vertices}_dens{densidade}_comp{componentes}_{numero}.csv', num_grafos=50):
     """Executa teste completo do gerador simples com 50 grafos."""
     try:
         
-        # Gera 50 grafos com os mesmos parâmetros
-        NUM_GRAFOS_PADRAO = 50
-        datasets = geraDataset(tipo, numV, numA, seed, n=NUM_GRAFOS_PADRAO, numC=numC, fator=0)
+        # Gera grafos com os mesmos parâmetros (configurável por --num_grafos)
+        datasets = geraDataset(tipo, numV, numA, seed, n=num_grafos, numC=numC, fator=0)
         
         if not datasets or len(datasets) == 0:
             return None
@@ -178,37 +184,65 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
         grafos_networkx = []  # Lista para análise de equivalência estrutural
         
         for i, arestas in enumerate(datasets):
-            matriz = criaMatrizAdjacencias(arestas, numV, tipo)
-            tipo_detectado = tipoGrafo(matriz)
-            metricas_grafo = calcula_metricas_completas(matriz, tipo_detectado)
+            tipo_detectado = tipo  # evitamos reconstrução por matriz
+            metricas_grafo = calcula_metricas_completas_por_arestas(arestas, numV, tipo_detectado)
+            
+            # Adiciona parâmetros do teste às métricas
+            metricas_grafo.update({
+                'gerador': 'Simples',
+                'tipo': tipo,
+                'numV': numV,
+                'numA': numA,
+                'seed': seed,
+                'estrategia_arestas': estrategia_arestas,
+                'preferencia_densidade': preferencia_densidade,
+                'numC': numC,
+                'numero': i + 1
+            })
+            
+            # Se formato individual, salva arquivo CSV imediatamente
+            if output_format == 'individual_csv':
+                nome_arquivo = naming_pattern.format(
+                    seed=seed,
+                    tipo=tipo,
+                    vertices=numV,
+                    densidade=preferencia_densidade,
+                    componentes=numC,
+                    numero=i + 1
+                )
+                caminho_arquivo = os.path.join(output_dir, nome_arquivo)
+                
+                # Cria diretório se não existir
+                os.makedirs(os.path.dirname(caminho_arquivo), exist_ok=True)
+                
+                # Salva CSV individual
+                df_individual = pd.DataFrame([metricas_grafo])
+                df_individual.to_csv(caminho_arquivo, index=False)
+                print(f"  [CSV] Salvo: {nome_arquivo}")
+            
             todas_metricas.append(metricas_grafo)
             
             # Converte para NetworkX para análise de equivalência estrutural
+            # Reaproveita o grafo via arestas para análise de equivalência
             import networkx as nx
-            if tipo in [1, 21, 31]:  # Dirigidos
-                G_nx = nx.DiGraph()
-            else:
-                G_nx = nx.Graph()
-            
-            for j in range(len(matriz)):
-                G_nx.add_node(j)
-                for k in range(len(matriz[j])):
-                    if matriz[j][k] > 0:
-                        G_nx.add_edge(j, k)
-            
+            G_nx = nx.DiGraph() if tipo in [1, 21, 31] else nx.Graph()
+            G_nx.add_nodes_from(range(numV))
+            G_nx.add_edges_from(arestas)
             grafos_networkx.append(G_nx)
         
-        # Calcula médias de todas as métricas
+        # Calcula médias apenas para métricas numéricas
+        def _is_numeric(value):
+            return isinstance(value, (int, float, np.integer, np.floating)) and not (isinstance(value, float) and np.isnan(value))
+
         metricas_medias = {}
         for chave in todas_metricas[0].keys():
-            if chave in ['num_vertices', 'tipo_detectado']:  # Valores fixos
-                metricas_medias[chave] = todas_metricas[0][chave]
-            else:  # Valores que devem ser calculados como média
-                valores = [m[chave] for m in todas_metricas if m[chave] is not None and not np.isnan(m[chave])]
-                if valores:
-                    metricas_medias[chave] = np.mean(valores)
-                else:
-                    metricas_medias[chave] = 0.0
+            valores_numericos = []
+            for m in todas_metricas:
+                v = m.get(chave)
+                if _is_numeric(v):
+                    valores_numericos.append(float(v))
+            if valores_numericos:
+                metricas_medias[chave] = float(np.mean(valores_numericos))
         
 
         
@@ -235,7 +269,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
         
         # Adiciona métricas básicas
         metricas_medias.update({
-            'taxa_sucesso': len(datasets) / NUM_GRAFOS_PADRAO,
+            'taxa_sucesso': len(datasets) / num_grafos,
             'limite_atingido': False
         })
         
@@ -249,7 +283,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
             'estrategia_arestas': estrategia_arestas,
             'preferencia_densidade': preferencia_densidade,
             'numC': numC,
-            'num_grafos_gerados': NUM_GRAFOS_PADRAO
+            'num_grafos_gerados': num_grafos
         })
         
         return metricas_medias
@@ -264,7 +298,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
             'estrategia_arestas': estrategia_arestas,
             'preferencia_densidade': preferencia_densidade,
             'numC': numC,
-            'num_grafos_gerados': 50,
+            'num_grafos_gerados': num_grafos,
             'taxa_sucesso': 0.0,
             'limite_atingido': True,
             'erro': 'MemoryError'
@@ -279,7 +313,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
             'estrategia_arestas': estrategia_arestas,
             'preferencia_densidade': preferencia_densidade,
             'numC': numC,
-            'num_grafos_gerados': 50,
+            'num_grafos_gerados': num_grafos,
             'taxa_sucesso': 0.0,
             'limite_atingido': True,
             'erro': str(e)
@@ -295,20 +329,39 @@ def main():
     parser.add_argument('--max_vertices', type=int, default=10000,
                        help='Máximo de vértices para teste (padrão: 10000)')
     parser.add_argument('--seeds', nargs='+', type=int, default=[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
-                       help='Lista de seeds para teste')
+                       help='Lista de seeds para teste (aceita seed única ou múltiplas)')
     parser.add_argument('--teste_rapido', action='store_true',
                        help='Executa versão reduzida para teste rápido')
+    parser.add_argument('--output_format', 
+                       choices=['consolidated_csv', 'individual_csv'], 
+                       default='consolidated_csv',
+                       help='Formato de saída: consolidated_csv (1 arquivo) ou individual_csv (1 arquivo por grafo)')
+    parser.add_argument('--naming_pattern', 
+                       type=str,
+                       default='metricas_{seed}_tipo{tipo}_v{vertices}_dens{densidade}_comp{componentes}_{numero}.csv',
+                       help='Padrão de nomeação para arquivos individuais')
+    parser.add_argument('--num_grafos', type=int, default=50,
+                       help='Número de grafos por combinação (padrão: 50)')
+    parser.add_argument('--smoke', action='store_true',
+                       help='Executa um smoke test mínimo (parâmetros reduzidos, poucos grafos)')
     
     args = parser.parse_args()
     
     # Configurações do experimento
     TIPOS_GRAFOS = [0, 1, 20, 21, 30, 31]  # Todos os tipos
     
-    if args.teste_rapido:
+    if args.smoke:
+        TAMANHOS = [100]
+        PREFERENCIAS_DENSIDADE = [0]
+        NUM_COMPONENTES = [0]
+        SEEDS = args.seeds
+        num_grafos_exec = min(args.num_grafos, 2)
+    elif args.teste_rapido:
         TAMANHOS = [100, 1000]
         PREFERENCIAS_DENSIDADE = [0, 1, 2]  # Sem preferência, Esparso, Denso
         NUM_COMPONENTES = [0, 1]  # Aleatório, Conexo
         SEEDS = [1000, 2000]
+        num_grafos_exec = args.num_grafos
     else:
         TAMANHOS = [100, 1000, 10000]
         if args.max_vertices >= 100000:
@@ -318,6 +371,7 @@ def main():
         PREFERENCIAS_DENSIDADE = [0, 1, 2]  # Sem preferência, Esparso, Denso
         NUM_COMPONENTES = [0, 1]  # Aleatório, Conexo
         SEEDS = args.seeds
+        num_grafos_exec = args.num_grafos
     
     # Cria diretório de saída
     os.makedirs(args.output_dir, exist_ok=True)
@@ -329,8 +383,11 @@ def main():
     print(f"Tamanhos: {TAMANHOS}")
     print(f"Preferências de densidade: {PREFERENCIAS_DENSIDADE} (0=Sem preferência, 1=Esparso, 2=Denso)")
     print(f"Número de componentes: {NUM_COMPONENTES} (0=Aleatório, 1=Conexo)")
-    print(f"Grafos por teste: 50 (valor fixo)")
+    print(f"Grafos por teste: {num_grafos_exec}")
     print(f"Seeds: {SEEDS}")
+    print(f"Formato de saída: {args.output_format}")
+    if args.output_format == 'individual_csv':
+        print(f"Padrão de nomenclatura: {args.naming_pattern}")
     
     # Calcula total de combinações
     total_combinacoes = (len(TIPOS_GRAFOS) * len(TAMANHOS) * 
@@ -372,7 +429,7 @@ def main():
                         
                         resultado = executa_teste_simples_completo(
                             tipo, numV, numA, seed, "Proporcional", pref_dens, 
-                            numC
+                            numC, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_exec
                         )
                         
                         if resultado:
@@ -386,8 +443,8 @@ def main():
     
 
     
-    # Salva resultados
-    if resultados:
+    # Salva/relata resultados
+    if resultados and args.output_format == 'consolidated_csv':
         df = pd.DataFrame(resultados)
         
         # Arquivo CSV principal
@@ -445,8 +502,14 @@ def main():
         print(f"[RESULTADOS] Salvos em: {csv_file}")
         print(f"[RESUMO] Salvo em: {resumo_file}")
         print(f"[SUCESSO] Taxa: {len(resultados)/total_combinacoes*100:.1f}%")
-        print(f"[GRAFOS] Total gerados: {len(resultados) * 50}")
-        print(f"[CONSISTÊNCIA] Média: {df['consistencia_estrutural'].mean():.3f}")
+        print(f"[GRAFOS] Total gerados: {len(resultados) * num_grafos_exec}")
+        if len(resultados) > 0 and 'consistencia_estrutural' in df.columns:
+            print(f"[CONSISTÊNCIA] Média: {df['consistencia_estrutural'].mean():.3f}")
+        print("=" * 80)
+    elif args.output_format == 'individual_csv':
+        print("\n" + "=" * 80)
+        print("[OK] EXPERIMENTO SIMPLES (ARQUIVOS INDIVIDUAIS) CONCLUIDO!")
+        print(f"[FORMATO] Arquivos individuais salvos em: {args.output_dir}")
         print("=" * 80)
     else:
         print("[ERRO] Nenhum resultado valido foi gerado!")

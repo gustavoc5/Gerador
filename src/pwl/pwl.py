@@ -1,7 +1,7 @@
 import numpy as np
 import random
 import networkx as nx
-from .constants import (
+from constants import (
     TIPOS_DIRIGIDOS, TIPOS_MULTIGRAFOS, TIPOS_PSEUDOGRAFOS,
     GRAU_MIN_PADRAO, GAMMA_MIN, GAMMA_MAX
 )

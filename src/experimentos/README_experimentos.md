@@ -11,7 +11,7 @@ Sistema simplificado e otimizado para execução de experimentos com geradores d
 | **Gerador** | **Arquivo** | **Descrição** | **Testes** | **Grafos por Teste** | **Total de Grafos** | **Arquivos Gerados** |
 |-------------|-------------|---------------|------------|---------------------|-------------------|---------------------|
 | **Simples** | `simples.py` | **Simples completo** - Todas as métricas | 1.800 | 50 | **90.000** | `resultados_simples_completo.csv` + `resumo_simples_completo.csv` |
-| **Power-Law** | `powerlaw.py` | **Power-Law completo** - Todas as métricas | 900 | 50 | **45.000** | `resultados_powerlaw_completo.csv` + `resumo_powerlaw_completo.csv` |
+| **Power-Law** | `power_law.py` | **Power-Law completo** - Todas as métricas | 900 | 50 | **45.000** | `resultados_powerlaw_completo.csv` + `resumo_powerlaw_completo.csv` |
 
 ## EXECUÇÃO RÁPIDA
 
@@ -21,7 +21,7 @@ Sistema simplificado e otimizado para execução de experimentos com geradores d
 python src/experimentos/simples.py --teste_rapido
 
 # Power-Law completo  
-python src/experimentos/powerlaw.py --teste_rapido
+python src/experimentos/power_law.py --teste_rapido
 ```
 
 ### Execução Completa
@@ -30,7 +30,7 @@ python src/experimentos/powerlaw.py --teste_rapido
 python src/experimentos/simples.py
 
 # Power-Law completo
-python src/experimentos/powerlaw.py
+python src/experimentos/power_law.py
 ```
 
 ### Executar Todos os Experimentos
@@ -106,8 +106,8 @@ resultados_experimentos/
 
 **Após execução paralela, os arquivos são concatenados:**
 
-- **`resultados_simples_completo.csv`** - Todos os dados do gerador Simples (todas as seeds)
-- **`resultados_powerlaw_completo.csv`** - Todos os dados do gerador Power-Law (todas as seeds)
+- `resultados_simples_completo.csv` - Todos os dados do gerador Simples (todas as seeds)
+- `resultados_powerlaw_completo.csv` - Todos os dados do gerador Power-Law (todas as seeds)
 
 ### Arquivos de Saída Detalhados
 

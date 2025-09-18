@@ -1,15 +1,15 @@
 import random
 import math
 import numpy as np
-from .constants import (
+from constants import (
     TIPOS_DIRIGIDOS, TIPOS_MULTIGRAFOS, TIPOS_PSEUDOGRAFOS,
     MAX_TENTATIVAS
 )
-from .exceptions import (
+from exceptions import (
     ParametrosInvalidosError, TentativasExcedidasError,
     ArestasInsuficientesError, ComponentesInvalidasError
 )
-from .utils import tipoGrafo, compConexas
+from utils import tipoGrafo, compConexas
 
 
 def verificaAresta(tipo, numV, numC):
@@ -395,15 +395,19 @@ def geraGrafoSimples(numV, numA):
             "Número de arestas excede o máximo permitido para um grafo simples."
         )
     
-    arestas = []
-    while len(arestas) < numA:
+    arestas_set = set()
+    tentativas = 0
+    limite = MAX_TENTATIVAS * max(1, numA)
+    while len(arestas_set) < numA and tentativas < limite:
         u = random.randint(0, numV - 1)
         v = random.randint(0, numV - 1)
-        if u != v and (u, v) not in arestas and (v, u) not in arestas:
-            aresta = (min(u, v), max(u, v))
-            arestas.append(aresta)
+        tentativas += 1
+        if u != v:
+            aresta = (u, v) if u < v else (v, u)
+            if aresta not in arestas_set:
+                arestas_set.add(aresta)
     
-    return arestas
+    return list(arestas_set)
 
 
 def geraGrafoDirigido(numV, numA):
@@ -413,15 +417,19 @@ def geraGrafoDirigido(numV, numA):
             "Número de arestas excede o máximo permitido para um digrafo."
         )
     
-    arestas = []
-    while len(arestas) < numA:
+    arestas_set = set()
+    tentativas = 0
+    limite = MAX_TENTATIVAS * max(1, numA)
+    while len(arestas_set) < numA and tentativas < limite:
         u = random.randint(0, numV - 1)
         v = random.randint(0, numV - 1)
-        if u != v and (u, v) not in arestas:
+        tentativas += 1
+        if u != v:
             aresta = (u, v)
-            arestas.append(aresta)
+            if aresta not in arestas_set:
+                arestas_set.add(aresta)
     
-    return arestas
+    return list(arestas_set)
 
 
 def geraMultigrafo(numV, numA, dirigido=False):

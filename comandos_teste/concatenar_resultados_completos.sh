@@ -27,10 +27,24 @@ concatenar_simples() {
     echo "Procurando 90.000 arquivos CSV individuais por seed..."
     echo "INCLUI TODAS AS MÉTRICAS: tempo, memória, skewness, kurtosis, etc."
     
-    # Criar arquivo principal com cabeçalho COMPLETO
-    cat > "${RESULTS_DIR}/exp_simples_completo/resultados_simples_completo.csv" << 'EOF'
-gerador,tipo,numV,numA,seed,estrategia_arestas,preferencia_densidade,numC,num_vertices,num_arestas,tipo_detectado,densidade,grau_medio,grau_max,grau_min,grau_desvio,grau_mediana,grau_skewness,grau_kurtosis,num_componentes,conectividade,pagerank_medio,pagerank_max,pagerank_min,pagerank_desvio,pagerank_mediana,closeness_medio,closeness_max,closeness_min,closeness_desvio,closeness_mediana,betweenness_medio,betweenness_max,betweenness_min,betweenness_desvio,betweenness_mediana,diametro,raio,distancia_media,num_comunidades_greedy,modularidade_greedy,num_comunidades_label,modularidade_label,razao_vertices_arestas,tempo_geracao,memoria_inicial,memoria_pico,memoria_final,taxa_sucesso,limite_atingido,similaridade_media,consistencia_estrutural,n_outliers_estruturais,indices_outliers
-EOF
+    # Descobrir cabeçalho dinamicamente a partir do primeiro CSV encontrado
+    primeiro_csv=""
+    for seed in "${SEEDS[@]}"; do
+        dir_seed="${RESULTS_DIR}/exp_simples_completo/${seed}"
+        if [ -d "$dir_seed" ]; then
+            mapfile -t arquivos_iniciais < <(find "$dir_seed" -type f -name "metricas_${seed}_*.csv" | sort)
+            if [ ${#arquivos_iniciais[@]} -gt 0 ]; then
+                primeiro_csv="${arquivos_iniciais[0]}"
+                break
+            fi
+        fi
+    done
+    if [ -z "$primeiro_csv" ]; then
+        echo "Nenhum CSV Simples encontrado para extrair cabeçalho."
+        return
+    fi
+    # Escrever cabeçalho real no arquivo consolidado
+    head -n 1 "$primeiro_csv" > "${RESULTS_DIR}/exp_simples_completo/resultados_simples_completo.csv"
     
     # Concatenação de todas as seeds
     for seed in "${SEEDS[@]}"; do
@@ -72,10 +86,24 @@ concatenar_powerlaw() {
     echo "Procurando 45.000 arquivos CSV individuais por seed..."
     echo "INCLUI TODAS AS MÉTRICAS: tempo, memória, power-law, etc."
     
-    # Criar arquivo principal com cabeçalho COMPLETO
-    cat > "${RESULTS_DIR}/exp_powerlaw_completo/resultados_powerlaw_completo.csv" << 'EOF'
-gerador,tipo,numV,gamma,seed,num_vertices,num_arestas,tipo_detectado,densidade,grau_medio,grau_max,grau_min,grau_desvio,grau_mediana,grau_skewness,grau_kurtosis,num_componentes,conectividade,pagerank_medio,pagerank_max,pagerank_min,pagerank_desvio,pagerank_mediana,closeness_medio,closeness_max,closeness_min,closeness_desvio,closeness_mediana,betweenness_medio,betweenness_max,betweenness_min,betweenness_desvio,betweenness_mediana,diametro,raio,distancia_media,num_comunidades_greedy,modularidade_greedy,num_comunidades_label,modularidade_label,tempo_geracao,memoria_inicial,memoria_pico,memoria_final,taxa_sucesso,limite_atingido,qualidade_powerlaw_R,powerlaw_pvalue,powerlaw_alpha,powerlaw_xmin,powerlaw_ks_statistic,powerlaw_ks_pvalue
-EOF
+    # Descobrir cabeçalho dinamicamente a partir do primeiro CSV encontrado
+    primeiro_csv=""
+    for seed in "${SEEDS[@]}"; do
+        dir_seed="${RESULTS_DIR}/exp_powerlaw_completo/${seed}"
+        if [ -d "$dir_seed" ]; then
+            mapfile -t arquivos_iniciais < <(find "$dir_seed" -type f -name "metricas_${seed}_*.csv" | sort)
+            if [ ${#arquivos_iniciais[@]} -gt 0 ]; then
+                primeiro_csv="${arquivos_iniciais[0]}"
+                break
+            fi
+        fi
+    done
+    if [ -z "$primeiro_csv" ]; then
+        echo "Nenhum CSV Power-Law encontrado para extrair cabeçalho."
+        return
+    fi
+    # Escrever cabeçalho real no arquivo consolidado
+    head -n 1 "$primeiro_csv" > "${RESULTS_DIR}/exp_powerlaw_completo/resultados_powerlaw_completo.csv"
     
     # Concatenação de todas as seeds
     for seed in "${SEEDS[@]}"; do

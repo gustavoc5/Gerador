@@ -1,8 +1,8 @@
 from pwl import geraGrafoPwl, tipoGrafo
-from distribuicao import validaDistribuicao
+# from distribuicao import validaDistribuicao  # Arquivo não existe
 from visualizacao import visualizaGrafo
-from analise import analisa_grafo
-from .constants import TIPOS_GRAFOS, GAMMA_MIN, GAMMA_MAX
+# from analise import analisa_grafo  # Arquivo não existe
+from constants import TIPOS_GRAFOS, GAMMA_MIN, GAMMA_MAX
 import random
 
 
@@ -34,19 +34,19 @@ def main():
     else:
         print("✅ O grafo gerado corresponde ao tipo solicitado.")
 
-    validaDistribuicao(graus, gamma)
+    # validaDistribuicao(graus, gamma)  # Função não existe
     visualizaGrafo(G, dirigido)
 
-    analise = analisa_grafo(G)
+    # analise = analisa_grafo(G)  # Função não existe
 
-    print("\n--- Comunidades ---")
-    print(f"Greedy: {analise['num_coms_greedy']} comunidades | Tam. médio: {analise['tam_medio_greedy']} | Maior: {analise['tam_maior_greedy']}")
-    print(f"LPA   : {analise['num_coms_lpa']} comunidades | Tam. médio: {analise['tam_medio_lpa']} | Maior: {analise['tam_maior_lpa']}")
+    # print("\n--- Comunidades ---")
+    # print(f"Greedy: {analise['num_coms_greedy']} comunidades | Tam. médio: {analise['tam_medio_greedy']} | Maior: {analise['tam_maior_greedy']}")
+    # print(f"LPA   : {analise['num_coms_lpa']} comunidades | Tam. médio: {analise['tam_medio_lpa']} | Maior: {analise['tam_maior_lpa']}")
 
-    print("\n--- Top‐5 nós por centralidade ---")
-    print(" Degree    :", analise["top5_degree"])
-    print(" PageRank  :", analise["top5_pagerank"])
-    print(" Closeness :", analise["top5_closeness"])
+    # print("\n--- Top‐5 nós por centralidade ---")
+    # print(" Degree    :", analise["top5_degree"])
+    # print(" PageRank  :", analise["top5_pagerank"])
+    # print(" Closeness :", analise["top5_closeness"])
 
 
 if __name__ == "__main__":

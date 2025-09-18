@@ -10,7 +10,7 @@
 MAIN_DIR="$(pwd)"
 PYTHON_EXE="python"
 EXPERIMENTO_SIMPLES="$MAIN_DIR/src/experimentos/simples.py"
-EXPERIMENTO_POWERLAW="$MAIN_DIR/src/experimentos/powerlaw.py"
+EXPERIMENTO_POWERLAW="$MAIN_DIR/src/experimentos/power_law.py"
 RESULTS_DIR="$MAIN_DIR/resultados_experimentos"
 
 # TODAS AS SEEDS (10 seeds para reprodutibilidade completa)
@@ -20,6 +20,12 @@ SEEDS=(1000 2000 3000 4000 5000 6000 7000 8000 9000 10000)
 # Simples: 6 tipos × 5 tamanhos × 3 densidades × 2 componentes × 10 seeds = 1.800 testes
 # Power-Law: 6 tipos × 5 tamanhos × 3 gammas × 10 seeds = 900 testes
 # Total: 2.700 testes × 50 grafos = 135.000 grafos
+
+# Modo SMOKE opcional: defina SMOKE=1 para reduzir parâmetros e grafos
+SMOKE_FLAG=""
+if [[ "${SMOKE}" == "1" ]]; then
+    SMOKE_FLAG="--smoke --num_grafos 2"
+fi
 
 echo "# COMANDOS PARA EXECUÇÃO PARALELA COMPLETA - TODOS OS EXPERIMENTOS"
 echo "# IMPORTANTE: Cada execução gera 1 arquivo CSV por grafo (135.000 arquivos individuais)"
@@ -53,24 +59,26 @@ gerar_comandos_seed() {
     echo "# Experimento Simples Completo - Seed $seed"
     echo "# 1.800 testes × 50 grafos = 90.000 arquivos CSV individuais"
     echo "# ESTRUTURA: metricas_{seed}_tipo{tipo}_v{vertices}_dens{densidade}_comp{componentes}_{numero}.csv"
-    echo "$PYTHON_EXE \"$EXPERIMENTO_SIMPLES\" \\"
-    echo "    --output_dir \"$RESULTS_DIR/exp_simples_completo/$seed\" \\"
-    echo "    --seeds $seed \\"
-    echo "    --output_format individual_csv \\"
-    echo "    --naming_pattern 'metricas_{seed}_tipo{tipo}_v{vertices}_dens{densidade}_comp{componentes}_{numero}.csv' \\"
-    echo "    &> \"$RESULTS_DIR/exp_simples_completo/$seed/log_${seed}_\$(date +%Y%m%d_%H%M%S).txt\""
+    echo "$PYTHON_EXE \"$EXPERIMENTO_SIMPLES\" \\
+    --output_dir \"$RESULTS_DIR/exp_simples_completo/$seed\" \\
+    --seeds $seed \\
+    --output_format individual_csv \\
+    --naming_pattern 'metricas_{seed}_tipo{tipo}_v{vertices}_dens{densidade}_comp{componentes}_{numero}.csv' \\
+    $SMOKE_FLAG \\
+    &> \"$RESULTS_DIR/exp_simples_completo/$seed/log_${seed}_\$(date +%Y%m%d_%H%M%S).txt\""
     echo ""
     
     # 3. EXECUTAR EXPERIMENTO POWER-LAW COMPLETO
     echo "# Experimento Power-Law Completo - Seed $seed"
     echo "# 900 testes × 50 grafos = 45.000 arquivos CSV individuais"
     echo "# ESTRUTURA: metricas_{seed}_tipo{tipo}_v{vertices}_gamma{gamma}_{numero}.csv"
-    echo "$PYTHON_EXE \"$EXPERIMENTO_POWERLAW\" \\"
-    echo "    --output_dir \"$RESULTS_DIR/exp_powerlaw_completo/$seed\" \\"
-    echo "    --seeds $seed \\"
-    echo "    --output_format individual_csv \\"
-    echo "    --naming_pattern 'metricas_{seed}_tipo{tipo}_v{vertices}_gamma{gamma}_{numero}.csv' \\"
-    echo "    &> \"$RESULTS_DIR/exp_powerlaw_completo/$seed/log_${seed}_\$(date +%Y%m%d_%H%M%S).txt\""
+    echo "$PYTHON_EXE \"$EXPERIMENTO_POWERLAW\" \\
+    --output_dir \"$RESULTS_DIR/exp_powerlaw_completo/$seed\" \\
+    --seeds $seed \\
+    --output_format individual_csv \\
+    --naming_pattern 'metricas_{seed}_tipo{tipo}_v{vertices}_gamma{gamma}_{numero}.csv' \\
+    $SMOKE_FLAG \\
+    &> \"$RESULTS_DIR/exp_powerlaw_completo/$seed/log_${seed}_\$(date +%Y%m%d_%H%M%S).txt\""
     echo ""
     
     echo "# ========================================="
@@ -126,6 +134,9 @@ gerar_resumo() {
     echo "# - Nomes descritivos com parâmetros"
     echo "#"
     echo "# TOTAL: 135.000 arquivos CSV individuais em 2.700 testes"
+    echo "#"
+    echo "# Smoke test mínimo (rápido):"
+    echo "#   export SMOKE=1; bash comandos_completos_paralelos.sh > comandos_execucao.sh; parallel -j 2 < comandos_execucao.sh"
     echo "# ========================================="
 }
 

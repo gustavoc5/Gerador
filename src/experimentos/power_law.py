@@ -25,10 +25,33 @@ import networkx as nx
 from datetime import datetime
 
 # Adiciona o diretório src ao path
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.dirname(__file__))
 
-from pwl.pwl import geraGrafoPwl
-from pwl.constants import GAMMA_MIN, GAMMA_MAX, GRAU_MIN_PADRAO
+# Importações diretas
+import sys
+import os
+# Prioriza o diretório pwl no sys.path e evita adicionar 'simples' aqui para não haver
+# conflito ao resolver 'constants' dentro de pwl/pwl.py
+pwl_dir = os.path.join(os.path.dirname(__file__), '..', 'pwl')
+if pwl_dir not in sys.path:
+    sys.path.insert(0, pwl_dir)
+
+# Importação direta do arquivo pwl.py
+import importlib.util
+pwl_path = os.path.join(os.path.dirname(__file__), '..', 'pwl', 'pwl.py')
+spec = importlib.util.spec_from_file_location("pwl_module", pwl_path)
+pwl_module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(pwl_module)
+geraGrafoPwl = pwl_module.geraGrafoPwl
+
+# Importação das constantes do pwl
+constants_path = os.path.join(os.path.dirname(__file__), '..', 'pwl', 'constants.py')
+spec_constants = importlib.util.spec_from_file_location("pwl_constants", constants_path)
+pwl_constants = importlib.util.module_from_spec(spec_constants)
+spec_constants.loader.exec_module(pwl_constants)
+GAMMA_MIN = pwl_constants.GAMMA_MIN
+GAMMA_MAX = pwl_constants.GAMMA_MAX
+GRAU_MIN_PADRAO = pwl_constants.GRAU_MIN_PADRAO
 
 def gera_gamma_aleatorio(categoria):
     """
@@ -50,6 +73,18 @@ def gera_gamma_aleatorio(categoria):
         raise ValueError(f"Categoria inválida: {categoria}")
 
 
+
+def gera_gamma_deterministico(categoria: str, seed_ctx: int) -> float:
+    """Gera gamma determinístico por combinação (seed, tipo, numV, categoria)."""
+    rng = np.random.default_rng(seed_ctx)
+    if categoria == 'denso':
+        return float(rng.uniform(2.0, 2.3))
+    elif categoria == 'moderado':
+        return float(rng.uniform(2.3, 2.7))
+    elif categoria == 'esparso':
+        return float(rng.uniform(2.7, 3.0))
+    else:
+        raise ValueError(f"Categoria inválida: {categoria}")
 
 def calcula_qualidade_powerlaw(graus):
     """Calcula a qualidade do ajuste power-law."""
@@ -77,22 +112,8 @@ def calcula_qualidade_powerlaw(graus):
         print(f"ERRO no cálculo power-law: {e}")
         return 0.0, 0.0, 0.0, 0.0
 
-def calcula_metricas_completas(matriz, tipo_grafo, graus=None):
-    """Calcula todas as métricas possíveis do grafo."""
-    import networkx as nx
-    
-    # Converte matriz para NetworkX
-    if tipo_grafo in [1, 21, 31]:  # Dirigidos
-        G = nx.DiGraph()
-    else:
-        G = nx.Graph()
-    
-    for i in range(len(matriz)):
-        G.add_node(i)
-        for j in range(len(matriz[i])):
-            if matriz[i][j] > 0:
-                G.add_edge(i, j)
-    
+def calcula_metricas_completas_por_grafo(G, tipo_grafo, graus=None):
+    """Calcula todas as métricas possíveis do grafo diretamente do objeto Graph."""
     metricas = {}
     
     # ===== MÉTRICAS BÁSICAS =====
@@ -223,40 +244,83 @@ def calcula_metricas_completas(matriz, tipo_grafo, graus=None):
     
     return metricas
 
-def executa_teste_powerlaw_completo(tipo, numV, gamma, seed):
+def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='consolidated_csv', output_dir='./resultados', naming_pattern='metricas_{seed}_tipo{tipo}_v{vertices}_gamma{gamma}_{numero}.csv', num_grafos=50):
     """Executa teste do gerador power-law com todas as métricas."""
     try:
         
-        # Gera o grafo (desequilibrado e grau_min são intrínsecos ao gerador)
+        # Gera grafos com os mesmos parâmetros (configurável por --num_grafos)
         dirigido = tipo in [1, 21, 31]
-        resultado = geraGrafoPwl(numV, gamma, dirigido, tipo, seed)
         
-        if resultado is None:
+        todas_metricas = []
+        
+        for i in range(num_grafos):
+            # Gera um grafo
+            resultado = geraGrafoPwl(numV, gamma, dirigido, tipo, seed + i)
+            
+            if resultado is None:
+                continue
+            
+            arestas, G, graus = resultado
+            tipo_detectado = tipo
+            
+            # Calcula métricas completas diretamente do Graph
+            metricas = calcula_metricas_completas_por_grafo(G, tipo_detectado, graus)
+            
+            # Adiciona parâmetros do teste
+            metricas.update({
+                'gerador': 'Power-Law',
+                'tipo': tipo,
+                'numV': numV,
+                'gamma': gamma,
+                'seed': seed,
+                'numero': i + 1
+            })
+            
+            # Se formato individual, salva arquivo CSV imediatamente
+            if output_format == 'individual_csv':
+                nome_arquivo = naming_pattern.format(
+                    seed=seed,
+                    tipo=tipo,
+                    vertices=numV,
+                    gamma=gamma,
+                    numero=i + 1
+                )
+                caminho_arquivo = os.path.join(output_dir, nome_arquivo)
+                
+                # Cria diretório se não existir
+                os.makedirs(os.path.dirname(caminho_arquivo), exist_ok=True)
+                
+                # Salva CSV individual
+                df_individual = pd.DataFrame([metricas])
+                df_individual.to_csv(caminho_arquivo, index=False)
+                print(f"  [CSV] Salvo: {nome_arquivo}")
+            
+            todas_metricas.append(metricas)
+        
+        if not todas_metricas:
             return None
         
-        arestas, G, graus = resultado
-        matriz = nx.to_numpy_array(G)
-        tipo_detectado = tipo
-        
-        # Calcula métricas completas
-        metricas = calcula_metricas_completas(matriz, tipo_detectado, graus)
+        # Calcula médias apenas para métricas numéricas
+        def _is_numeric(value):
+            return isinstance(value, (int, float, np.integer, np.floating)) and not (isinstance(value, float) and np.isnan(value))
+
+        metricas_medias = {}
+        for chave in todas_metricas[0].keys():
+            valores_numericos = []
+            for m in todas_metricas:
+                v = m.get(chave)
+                if _is_numeric(v):
+                    valores_numericos.append(float(v))
+            if valores_numericos:
+                metricas_medias[chave] = float(np.mean(valores_numericos))
         
         # Adiciona métricas básicas
-        metricas.update({
-            'taxa_sucesso': 1.0,
+        metricas_medias.update({
+            'taxa_sucesso': len(todas_metricas) / num_grafos,
             'limite_atingido': False
         })
         
-        # Adiciona parâmetros do teste
-        metricas.update({
-            'gerador': 'Power-Law',
-            'tipo': tipo,
-            'numV': numV,
-            'gamma': gamma,
-            'seed': seed
-        })
-        
-        return metricas
+        return metricas_medias
         
     except MemoryError:
         return {
@@ -292,19 +356,37 @@ def main():
     parser.add_argument('--max_vertices', type=int, default=10000,
                        help='Máximo de vértices para teste (padrão: 10000)')
     parser.add_argument('--seeds', nargs='+', type=int, default=[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
-                       help='Lista de seeds para teste')
+                       help='Lista de seeds para teste (aceita seed única ou múltiplas)')
     parser.add_argument('--teste_rapido', action='store_true',
                        help='Executa versão reduzida para teste rápido')
+    parser.add_argument('--output_format', 
+                       choices=['consolidated_csv', 'individual_csv'], 
+                       default='consolidated_csv',
+                       help='Formato de saída: consolidated_csv (1 arquivo) ou individual_csv (1 arquivo por grafo)')
+    parser.add_argument('--naming_pattern', 
+                       type=str,
+                       default='metricas_{seed}_tipo{tipo}_v{vertices}_gamma{gamma}_{numero}.csv',
+                       help='Padrão de nomeação para arquivos individuais')
+    parser.add_argument('--num_grafos', type=int, default=50,
+                       help='Número de grafos por combinação (padrão: 50)')
+    parser.add_argument('--smoke', action='store_true',
+                       help='Executa um smoke test mínimo (parâmetros reduzidos, poucos grafos)')
     
     args = parser.parse_args()
     
     # Configurações do experimento
     TIPOS_GRAFOS = [0, 1, 20, 21, 30, 31]  # Todos os tipos
     
-    if args.teste_rapido:
+    if args.smoke:
+        TAMANHOS = [100]
+        CATEGORIAS_GAMMA = ['denso']
+        SEEDS = args.seeds
+        num_grafos_exec = min(args.num_grafos, 2)
+    elif args.teste_rapido:
         TAMANHOS = [100, 1000]
         CATEGORIAS_GAMMA = ['denso', 'moderado']
         SEEDS = [1000, 2000]
+        num_grafos_exec = args.num_grafos
     else:
         TAMANHOS = [100, 1000, 10000]
         if args.max_vertices >= 100000:
@@ -313,6 +395,7 @@ def main():
             TAMANHOS.append(1000000)
         CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
         SEEDS = args.seeds
+        num_grafos_exec = args.num_grafos
     
     # Cria diretório de saída
     os.makedirs(args.output_dir, exist_ok=True)
@@ -342,14 +425,14 @@ def main():
                 for seed in SEEDS:
                     teste_atual += 1
                     
-                    # Gera gamma aleatório dentro da categoria
-                    np.random.seed(seed)  # Para reprodutibilidade
-                    gamma = gera_gamma_aleatorio(categoria_gamma)
+                    # Gera gamma determinístico por combinação (seed, tipo, numV, categoria)
+                    seed_ctx = (hash((int(seed), int(tipo), int(numV), str(categoria_gamma))) & 0xFFFFFFFF)
+                    gamma = gera_gamma_deterministico(categoria_gamma, seed_ctx)
                     
                     print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {categoria_gamma} (γ={gamma:.3f}) - Seed={seed}")
                     
                     resultado = executa_teste_powerlaw_completo(
-                        tipo, numV, gamma, seed
+                        tipo, numV, gamma, seed, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_exec
                     )
                     
                     if resultado:
@@ -364,7 +447,7 @@ def main():
 
     
     # Salva resultados
-    if resultados:
+    if resultados and args.output_format == 'consolidated_csv':
         df = pd.DataFrame(resultados)
         
         # Arquivo CSV principal
@@ -418,9 +501,11 @@ def main():
         
         print("\n" + "=" * 80)
         print("[OK] EXPERIMENTO POWER-LAW COMPLETO CONCLUIDO!")
-        print(f"[RESULTADOS] Salvos em: {csv_file}")
-        print(f"[RESUMO] Salvo em: {resumo_file}")
-
+        if args.output_format == 'consolidated_csv':
+            print(f"[RESULTADOS] Salvos em: {csv_file}")
+            print(f"[RESUMO] Salvo em: {resumo_file}")
+        else:
+            print(f"[FORMATO] Arquivos individuais salvos em: {args.output_dir}")
         print(f"[SUCESSO] Taxa: {len(resultados)/total_combinacoes*100:.1f}%")
         print("=" * 80)
     else:

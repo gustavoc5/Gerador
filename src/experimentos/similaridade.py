@@ -8,7 +8,7 @@ import numpy as np
 import networkx as nx
 from scipy.spatial.distance import pdist, squareform
 try:
-    from sklearn.metrics import silhouette_score
+    from sklearn.metrics import silhouette_score  # type: ignore[reportMissingImports]
 except ImportError:
     # Fallback se sklearn não estiver disponível
     def silhouette_score(X, labels):
