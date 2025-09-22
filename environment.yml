@@ -1,0 +1,20 @@
+name: myenv
+channels:
+    - conda-forge
+    - defaults
+dependencies:
+    - python>=3.13
+    - numpy>=1.21.0
+    - networkx>=2.8.0
+    - pandas>=1.3.0
+    - scipy>=1.7.0
+    - matplotlib>=3.5.0
+    - pytest>=6.0.0
+    - setuptools>=65.0.0
+    - wheel>=0.37.0
+    # igraph and powerlaw are not always available as conda packages, so use pip
+    - pip
+    - pip:
+        - python-igraph>=0.10.0
+        - powerlaw>=1.5
+
