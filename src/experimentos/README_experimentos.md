@@ -131,7 +131,7 @@ resultados_experimentos/
 
 **Colunas Específicas:**
 - **Simples**: `preferencia_densidade`, `numC`, `razao_vertices_arestas`
-- **Power-Law**: `gamma`, `qualidade_powerlaw_R`, `powerlaw_alpha`, `powerlaw_xmin`
+- **Power-Law**: `gamma`, `qualidade_powerlaw_R`, `qualidade_powerlaw_p_value`, `powerlaw_alpha`, `powerlaw_xmin`
 
 ## PARÂMETROS DOS EXPERIMENTOS
 

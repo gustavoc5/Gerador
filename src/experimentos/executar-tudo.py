@@ -101,7 +101,7 @@ def main():
             '--output_dir', os.path.join(args.output_dir, 'exp_powerlaw_completo')
         ]
         
-        if executar_experimento('powerlaw.py', args_powerlaw):
+        if executar_experimento('power_law.py', args_powerlaw):
             sucessos += 1
     
     # Resumo final

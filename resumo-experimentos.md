@@ -201,7 +201,7 @@ python src/experimentos/experimento_simples_completo.py \
 
 **Geração de Comandos:**
 ```bash
-python src/experimentos/gerar_comandos_paralelos.py \
+python src/experimentos/paralelizacao.py \
     --main_dir "/path/to/project" \
     --experimento todos \
     --seeds 1000 2000 3000 4000 5000 6000 7000 8000 9000 10000 \

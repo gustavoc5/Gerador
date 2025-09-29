@@ -40,14 +40,17 @@ python src/experimentos/power_law.py \
 **Objetivo**: Teste com granularidade por tipo, validando paralelização.
 
 ```bash
-# 1. Gerar comandos por tipo
-bash comandos_teste/comandos_por_tipo.sh > comandos_execucao.sh
+# 1. Gerar comandos usando paralelizacao.py
+python src/experimentos/paralelizacao.py \
+  --main_dir $(pwd) \
+  --experimento todos \
+  --seeds 2700001 3170702080 3548644859 1033592630 9263589860 1883634842 7648101510 1502014705 7214842310 2606453957 4194499680 2779365847 1094121244 1090525961 3310223418 604827988 1549035388 795578792 182649370 1127200130 332728275 1477598055 1157679575 3489403805 359655529 3107219804 911079554 1642444692 3959116112 2991474091
 
-# 2. Executar com 12 threads (teste controlado)
-parallel -j 12 < comandos_execucao.sh
+# 2. Executar com GNU parallel (exemplo com 12 threads)
+cat comandos_paralelos/comandos_todos.sh | parallel -j 12
 
 # 3. Concatenação dos resultados
-bash comandos_teste/concatenar_resultados_por_tipo.sh
+bash comandos_paralelos/concatenar_resultados.sh
 ```
 
 **Resultado esperado**:
@@ -61,14 +64,17 @@ bash comandos_teste/concatenar_resultados_por_tipo.sh
 **Objetivo**: Execução completa com máxima paralelização.
 
 ```bash
-# 1. Gerar comandos completos
-bash comandos_teste/comandos_por_tipo.sh > comandos_execucao.sh
+# 1. Gerar comandos usando paralelizacao.py
+python src/experimentos/paralelizacao.py \
+  --main_dir $(pwd) \
+  --experimento todos \
+  --seeds 2700001 3170702080 3548644859 1033592630 9263589860 1883634842 7648101510 1502014705 7214842310 2606453957 4194499680 2779365847 1094121244 1090525961 3310223418 604827988 1549035388 795578792 182649370 1127200130 332728275 1477598055 1157679575 3489403805 359655529 3107219804 911079554 1642444692 3959116112 2991474091
 
-# 2. Executar com 120 threads (todas as máquinas)
-parallel -j 120 < comandos_execucao.sh
+# 2. Executar com GNU parallel (exemplo com 60 threads - 30% das máquinas)
+cat comandos_paralelos/comandos_todos.sh | parallel -j 60
 
 # 3. Concatenação dos resultados
-bash comandos_teste/concatenar_resultados_por_tipo.sh
+bash comandos_paralelos/concatenar_resultados.sh
 ```
 
 **Resultado esperado**:
@@ -168,16 +174,16 @@ python src/experimentos/power_law.py --seeds 1000 2000 --tipos 0 1 --smoke --num
 
 ### **Teste Médio:**
 ```bash
-bash comandos_teste/comandos_por_tipo.sh > comandos.sh
-parallel -j 12 < comandos.sh
-bash comandos_teste/concatenar_resultados_por_tipo.sh
+python src/experimentos/paralelizacao.py --main_dir $(pwd) --experimento todos --seeds 2700001 3170702080 3548644859 1033592630 9263589860
+cat comandos_paralelos/comandos_todos.sh | parallel -j 12
+bash comandos_paralelos/concatenar_resultados.sh
 ```
 
 ### **Execução Completa:**
 ```bash
-bash comandos_teste/comandos_por_tipo.sh > comandos.sh
-parallel -j 120 < comandos.sh
-bash comandos_teste/concatenar_resultados_por_tipo.sh
+python src/experimentos/paralelizacao.py --main_dir $(pwd) --experimento todos --seeds 2700001 3170702080 3548644859 1033592630 9263589860 1883634842 7648101510 1502014705 7214842310 2606453957 4194499680 2779365847 1094121244 1090525961 3310223418 604827988 1549035388 795578792 182649370 1127200130 332728275 1477598055 1157679575 3489403805 359655529 3107219804 911079554 1642444692 3959116112 2991474091
+cat comandos_paralelos/comandos_todos.sh | parallel -j 60
+bash comandos_paralelos/concatenar_resultados.sh
 ```
 
 ## ✅ Status do Sistema
