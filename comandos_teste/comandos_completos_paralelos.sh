@@ -59,7 +59,7 @@ gerar_comandos_seed() {
     echo "# Experimento Simples Completo - Seed $seed"
     echo "# 1.800 testes × 50 grafos = 90.000 arquivos CSV individuais"
     echo "# ESTRUTURA: metricas_{seed}_tipo{tipo}_v{vertices}_dens{densidade}_comp{componentes}_{numero}.csv"
-    echo "$PYTHON_EXE \"$EXPERIMENTO_SIMPLES\" \\
+    echo "timeout 7200 $PYTHON_EXE \"$EXPERIMENTO_SIMPLES\" \\
     --output_dir \"$RESULTS_DIR/exp_simples_completo/$seed\" \\
     --seeds $seed \\
     --output_format individual_csv \\
@@ -72,7 +72,7 @@ gerar_comandos_seed() {
     echo "# Experimento Power-Law Completo - Seed $seed"
     echo "# 900 testes × 50 grafos = 45.000 arquivos CSV individuais"
     echo "# ESTRUTURA: metricas_{seed}_tipo{tipo}_v{vertices}_gamma{gamma}_{numero}.csv"
-    echo "$PYTHON_EXE \"$EXPERIMENTO_POWERLAW\" \\
+    echo "timeout 7200 $PYTHON_EXE \"$EXPERIMENTO_POWERLAW\" \\
     --output_dir \"$RESULTS_DIR/exp_powerlaw_completo/$seed\" \\
     --seeds $seed \\
     --output_format individual_csv \\
