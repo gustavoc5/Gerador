@@ -389,12 +389,28 @@ def geraComponente(tipo, numV, numA, numC, fator):
 
 
 def geraGrafoSimples(numV, numA):
-    """Gera grafo simples."""
-    if numA > numV * (numV - 1) / 2:
+    """Gera grafo simples com otimização para grafos densos."""
+    max_arestas = numV * (numV - 1) // 2
+    if numA > max_arestas:
         raise ArestasInsuficientesError(
             "Número de arestas excede o máximo permitido para um grafo simples."
         )
     
+    # Para grafos muito densos (>80% da densidade máxima), usa algoritmo determinístico
+    densidade = numA / max_arestas if max_arestas > 0 else 0
+    if densidade > 0.8:
+        # Algoritmo determinístico para grafos densos (evita travamentos)
+        arestas = []
+        for u in range(numV):
+            for v in range(u + 1, numV):
+                if len(arestas) >= numA:
+                    break
+                arestas.append((u, v))
+            if len(arestas) >= numA:
+                break
+        return arestas[:numA]
+    
+    # Algoritmo aleatório para grafos esparsos (comportamento normal)
     arestas_set = set()
     tentativas = 0
     limite = MAX_TENTATIVAS * max(1, numA)

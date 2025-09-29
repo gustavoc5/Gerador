@@ -27,6 +27,25 @@ from datetime import datetime
 # Adiciona o diretório src ao path
 sys.path.append(os.path.dirname(__file__))
 
+def verificar_dependencias():
+    """Verifica se todas as dependências estão instaladas."""
+    dependencias = {
+        'numpy': 'NumPy',
+        'networkx': 'NetworkX', 
+        'scipy': 'SciPy',
+        'pandas': 'Pandas',
+        'powerlaw': 'Powerlaw',
+        'sklearn': 'Scikit-learn'
+    }
+    
+    for modulo, nome in dependencias.items():
+        try:
+            __import__(modulo)
+        except ImportError:
+            print(f"ERRO: {nome} não está instalado")
+            print(f"Execute: pip install {modulo}")
+            sys.exit(1)
+
 # Importações diretas
 import sys
 import os
@@ -348,6 +367,9 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='cons
 
 def main():
     """Função principal do experimento."""
+    # Verificar dependências antes de continuar
+    verificar_dependencias()
+    
     import argparse
     
     parser = argparse.ArgumentParser(description='Experimento Power-Law Completo - Todas as métricas')
@@ -371,11 +393,13 @@ def main():
                        help='Número de grafos por combinação (padrão: 50)')
     parser.add_argument('--smoke', action='store_true',
                        help='Executa um smoke test mínimo (parâmetros reduzidos, poucos grafos)')
+    parser.add_argument('--tipos', nargs='+', type=int, default=[0, 1, 20, 21, 30, 31],
+                       help='Lista de tipos de grafos para teste (padrão: todos os tipos)')
     
     args = parser.parse_args()
     
     # Configurações do experimento
-    TIPOS_GRAFOS = [0, 1, 20, 21, 30, 31]  # Todos os tipos
+    TIPOS_GRAFOS = args.tipos  # Tipos fornecidos pelo usuário
     
     if args.smoke:
         TAMANHOS = [100]
@@ -447,7 +471,7 @@ def main():
 
     
     # Salva resultados
-    if resultados and args.output_format == 'consolidated_csv':
+    if args.output_format == 'consolidated_csv' and resultados:
         df = pd.DataFrame(resultados)
         
         # Arquivo CSV principal
@@ -508,6 +532,17 @@ def main():
             print(f"[FORMATO] Arquivos individuais salvos em: {args.output_dir}")
         print(f"[SUCESSO] Taxa: {len(resultados)/total_combinacoes*100:.1f}%")
         print("=" * 80)
+    elif args.output_format == 'individual_csv':
+        # Para formato individual, verifica se há arquivos CSV gerados
+        csv_files = [f for f in os.listdir(args.output_dir) if f.endswith('.csv')]
+        if csv_files:
+            print("\n" + "=" * 80)
+            print("[OK] EXPERIMENTO POWER-LAW COMPLETO CONCLUIDO!")
+            print(f"[FORMATO] Arquivos individuais salvos em: {args.output_dir}")
+            print(f"[ARQUIVOS] {len(csv_files)} arquivos CSV gerados")
+            print("=" * 80)
+        else:
+            print("[ERRO] Nenhum resultado valido foi gerado!")
     else:
         print("[ERRO] Nenhum resultado valido foi gerado!")
 
