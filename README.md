@@ -8,29 +8,33 @@ Sistema completo de geração e análise de grafos para estudos de redes complex
 Gerador/
 ├── src/                           # Código fonte principal
 │   ├── simples/                   # Gerador de grafos simples
-│   │   ├── gerador.py            # Implementação principal
-│   │   ├── constants.py          # Constantes e configurações
-│   │   ├── exceptions.py         # Tratamento de exceções
-│   │   ├── utils.py              # Utilitários
-│   │   ├── main.py               # Interface de linha de comando
-│   │   └── test_simples.py       # Testes unitários
+│   │   ├── gerador.py
+│   │   ├── constants.py
+│   │   ├── exceptions.py
+│   │   ├── utils.py
+│   │   ├── main.py
+│   │   └── test_simples.py
 │   ├── pwl/                      # Gerador de grafos power-law
-│   │   ├── pwl.py                # Implementação principal
-│   │   ├── constants.py          # Constantes e configurações
-│   │   └── test_pwl.py           # Testes unitários
+│   │   ├── pwl.py
+│   │   ├── constants.py
+│   │   └── test_pwl.py
 │   └── experimentos/             # Sistema de experimentos
 │       ├── simples.py            # Experimento simples completo
-│       ├── powerlaw.py           # Experimento power-law completo
+│       ├── power_law.py          # Experimento power-law completo
 │       ├── similaridade.py       # Métricas de equivalência estrutural
-│       ├── gerar_comandos_paralelos.py        # Gerador de comandos
-│       └── executar-tudo.py      # Executor geral
-├── comandos_teste/               # Scripts de execução paralela
-│   ├── comandos_todos.sh         # Comandos para execução
-│   ├── concatenar_resultados.sh  # Script de concatenação
-│   └── README.md                 # Instruções de uso
-├── requirements.txt              # Dependências Python
-├── .gitignore                    # Arquivos ignorados pelo Git
-└── README.md                     # Este arquivo
+│       ├── paralelizacao.py      # Gerador de comandos para GNU parallel
+│       └── executar-tudo.py      # Executor geral (opcional)
+├── comandos_teste/               # Documentação de execução
+│   ├── README_TESTES.md          # Guia de níveis de teste
+│   ├── README_ORIENTADOR.md      # Guia geral de execução paralela
+│   └── LIMITES_OTIMIZADOS.md     # Notas sobre limites de recursos
+├── comandos_paralelos/           # Saída gerada por paralelizacao.py (auto)
+│   ├── comandos_todos.sh
+│   ├── comandos_todos_mkdir.sh
+│   ├── comandos_todos_python.sh
+│   └── concatenar_resultados.sh
+├── requirements.txt
+└── README.md
 ```
 
 ## Características Principais
@@ -119,7 +123,7 @@ python src/pwl/pwl.py --numV 1000 --categoria denso --seed 456
 python src/experimentos/simples.py --seeds 1000 2000
 
 # Experimento power-law completo
-python src/experimentos/powerlaw.py --seeds 1000 2000
+python src/experimentos/power_law.py --seeds 1000 2000
 
 # Executar ambos os experimentos
 python src/experimentos/executar-tudo.py --teste_rapido
@@ -127,18 +131,22 @@ python src/experimentos/executar-tudo.py --teste_rapido
 
 ### Execução Paralela
 ```bash
-# 1. Gerar comandos de execução
-python src/experimentos/gerar_comandos_paralelos.py \
-    --main_dir "/path/to/project" \
-    --experimento todos \
-    --seeds 1000 2000 3000 4000 5000 \
-    --output_dir ./comandos_teste
+# 1. Gerar comandos de execução (um por linha, sem quebras)
+python src/experimentos/paralelizacao.py \
+  --main_dir $(pwd) \
+  --experimento todos \
+  --seeds 2700001 3170702080 3548644859 1033592630 9263589860 \
+         1883634842 7648101510 1502014705 7214842310 2606453957 \
+         4194499680 2779365847 1094121244 1090525961 3310223418 \
+         604827988 1549035388 795578792 182649370 1127200130 \
+         332728275 1477598055 1157679575 3489403805 359655529 \
+         3107219804 911079554 1642444692 3959116112 2991474091
 
-# 2. Executar em paralelo
-cat comandos_teste/comandos_todos.sh | parallel -j 4
+# 2. Executar em paralelo (GNU parallel)
+cat comandos_paralelos/comandos_todos.sh | parallel -j 60
 
-# 3. Concatenar resultados
-./comandos_teste/concatenar_resultados.sh
+# 3. Concatenação final
+bash comandos_paralelos/concatenar_resultados.sh
 ```
 
 ### Estrutura de Arquivos Gerados
@@ -219,10 +227,10 @@ resultados_experimentos/
 
 ## Documentação Técnica
 
-Para informações detalhadas sobre a metodologia experimental e estratégia de paralelização, consulte:
-
-- `src/experimentos/README_experimentos.md` - Documentação dos experimentos
-- `comandos_teste/README.md` - Instruções de execução paralela
+Para detalhes:
+- `src/experimentos/README_experimentos.md` — Documentação dos experimentos
+- `docs/README_TESTES.md` — Guia de níveis de teste
+- `docs/README_EXECUCAO_PARALELA.md` — Guia de execução paralela (GNU parallel)
 
 ## Desenvolvimento
 

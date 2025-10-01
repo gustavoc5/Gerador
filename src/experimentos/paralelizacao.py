@@ -45,12 +45,7 @@ def gerar_comandos_simples(main_dir, seeds, output_file):
         # Gera comando para esta seed
         output_path = os.path.join(seed_dir, "resultados.csv")
         
-        comando = (
-            f"python {script_path} "
-            f"--output_dir {seed_dir} "
-            f"--seeds {seed} "
-            f"&> {seed_dir}/log.txt"
-        )
+        comando = f"export OMP_NUM_THREADS=24 && export MKL_NUM_THREADS=24 && python {script_path} --output_dir {seed_dir} --seeds {seed} &> {seed_dir}/log.txt"
         
         comandos.append(comando)
     
@@ -91,12 +86,7 @@ def gerar_comandos_powerlaw(main_dir, seeds, output_file):
         # Gera comando para esta seed
         output_path = os.path.join(seed_dir, "resultados.csv")
         
-        comando = (
-            f"python {script_path} "
-            f"--output_dir {seed_dir} "
-            f"--seeds {seed} "
-            f"&> {seed_dir}/log.txt"
-        )
+        comando = f"export OMP_NUM_THREADS=24 && export MKL_NUM_THREADS=24 && python {script_path} --output_dir {seed_dir} --seeds {seed} &> {seed_dir}/log.txt"
         
         comandos.append(comando)
     
@@ -116,6 +106,7 @@ def gerar_comandos_powerlaw(main_dir, seeds, output_file):
 def gerar_comandos_todos(main_dir, seeds, output_file):
     """
     Gera comandos para ambos os experimentos.
+    Cada comando é uma linha única, sem quebras, para GNU parallel.
     """
     print("Gerando comandos para ambos os experimentos...")
     
@@ -140,21 +131,11 @@ def gerar_comandos_todos(main_dir, seeds, output_file):
         comandos.append(f"mkdir -p {seed_dir_simples}")
         comandos.append(f"mkdir -p {seed_dir_powerlaw}")
         
-        # Comando para experimento Simples
-        comando_simples = (
-            f"python {script_simples} "
-            f"--output_dir {seed_dir_simples} "
-            f"--seeds {seed} "
-            f"&> {seed_dir_simples}/log.txt"
-        )
+        # Comando para experimento Simples (uma linha única, sem quebras)
+        comando_simples = f"export OMP_NUM_THREADS=24 && export MKL_NUM_THREADS=24 && python {script_simples} --output_dir {seed_dir_simples} --seeds {seed} &> {seed_dir_simples}/log.txt"
         
-        # Comando para experimento Power-Law
-        comando_powerlaw = (
-            f"python {script_powerlaw} "
-            f"--output_dir {seed_dir_powerlaw} "
-            f"--seeds {seed} "
-            f"&> {seed_dir_powerlaw}/log.txt"
-        )
+        # Comando para experimento Power-Law (uma linha única, sem quebras)
+        comando_powerlaw = f"export OMP_NUM_THREADS=24 && export MKL_NUM_THREADS=24 && python {script_powerlaw} --output_dir {seed_dir_powerlaw} --seeds {seed} &> {seed_dir_powerlaw}/log.txt"
         
         comandos.append(comando_simples)
         comandos.append(comando_powerlaw)
@@ -163,14 +144,30 @@ def gerar_comandos_todos(main_dir, seeds, output_file):
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write("# COMANDOS PARA EXECUÇÃO PARALELA - AMBOS OS EXPERIMENTOS\n")
         f.write(f"# Total of seeds: {len(seeds)}\n")
-        f.write(f"# Total of commands: {len(seeds) * 2}\n")
+        f.write(f"# Total of commands: {len(seeds) * 4}\n")
+        f.write(f"# Commands per seed: 4 (2 mkdir + 2 python)\n")
         f.write(f"# Simples tests per seed: {len(TIPOS_GRAFOS) * len(TAMANHOS) * len(PREFERENCIAS_DENSIDADE) * len(NUM_COMPONENTES)}\n")
         f.write(f"# Power-Law tests per seed: {len(TIPOS_GRAFOS) * len(TAMANHOS) * len(CATEGORIAS_GAMMA)}\n")
         f.write(f"# Simples graphs per seed: {len(TIPOS_GRAFOS) * len(TAMANHOS) * len(PREFERENCIAS_DENSIDADE) * len(NUM_COMPONENTES) * 50}\n")
-        f.write(f"# Power-Law graphs per seed: {len(TIPOS_GRAFOS) * len(TAMANHOS) * len(CATEGORIAS_GAMMA) * 50}\n\n")
+        f.write(f"# Power-Law graphs per seed: {len(TIPOS_GRAFOS) * len(TAMANHOS) * len(CATEGORIAS_GAMMA) * 50}\n")
+        f.write(f"# Thread limit: 24 threads per process\n\n")
         
         for comando in comandos:
             f.write(comando + "\n")
+    
+    # Gera arquivo separado apenas com comandos mkdir (para GNU parallel)
+    mkdir_file = output_file.replace('.sh', '_mkdir.sh')
+    with open(mkdir_file, 'w', encoding='utf-8') as f:
+        for comando in comandos:
+            if comando.startswith('mkdir'):
+                f.write(comando + "\n")
+    
+    # Gera arquivo separado apenas com comandos python (para GNU parallel)
+    python_file = output_file.replace('.sh', '_python.sh')
+    with open(python_file, 'w', encoding='utf-8') as f:
+        for comando in comandos:
+            if comando.startswith('export'):
+                f.write(comando + "\n")
     
     print(f"Comandos salvos em: {output_file}")
     print(f"Total de comandos gerados: {len(comandos)}")

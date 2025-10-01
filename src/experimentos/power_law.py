@@ -453,7 +453,7 @@ def main():
                     seed_ctx = (hash((int(seed), int(tipo), int(numV), str(categoria_gamma))) & 0xFFFFFFFF)
                     gamma = gera_gamma_deterministico(categoria_gamma, seed_ctx)
                     
-                    print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {categoria_gamma} (γ={gamma:.3f}) - Seed={seed}")
+                    print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {categoria_gamma} (gamma={gamma:.3f}) - Seed={seed}")
                     
                     resultado = executa_teste_powerlaw_completo(
                         tipo, numV, gamma, seed, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_exec
