@@ -1,7 +1,7 @@
 #!/bin/bash
 # SCRIPT PARA CONCATENAR RESULTADOS DE TODAS AS SEEDS
 
-MAIN_DIR="C:\Users\gusta\OneDrive\GUSTAVO\Unifei\TCC\Gerador"
+MAIN_DIR="/home/cea/projects/gerador_grafos"
 echo "Concatenando resultados..."
 
 # CONCATENAÇÃO EXPERIMENTO SIMPLES

@@ -21,7 +21,7 @@ cat comandos_todos.sh | parallel -j 4
 
 ### 3. Estrutura de Saída:
 ```
-C:\Users\gusta\OneDrive\GUSTAVO\Unifei\TCC\Gerador/resultados_experimentos/
+/home/cea/projects/gerador_grafos/resultados_experimentos/
 ├── exp_simples_completo/
 │   ├── resultados_simples_completo.csv  # Resultado final
 │   └── {seed}/                          # Dados por seed
