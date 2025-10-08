@@ -274,7 +274,14 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='cons
         
         for i in range(num_grafos):
             # Gera um grafo
-            resultado = geraGrafoPwl(numV, gamma, dirigido, tipo, seed + i)
+            # Compatibiliza seeds potencialmente > 2**32-1 (alguns RNGs exigem 32 bits)
+            seed_effective = int(seed) + int(i)
+            try:
+                seed_compat = int(seed_effective % (2**32 - 1))
+            except Exception:
+                seed_compat = int(abs(hash((seed_effective, tipo, numV))) & 0xFFFFFFFF)
+
+            resultado = geraGrafoPwl(numV, gamma, dirigido, tipo, seed_compat)
             
             if resultado is None:
                 continue
@@ -481,45 +488,26 @@ def main():
         # Arquivo de resumo
         resumo_file = os.path.join(args.output_dir, 'resumo_powerlaw_completo.csv')
         
-        # Cria resumo agrupado por tipo
-        resumo_por_tipo = df.groupby('tipo').agg({
+        # Cria resumo agrupado por tipo (resiliente a colunas ausentes)
+        desejadas_mean = [
+            'densidade', 'grau_medio', 'grau_max', 'grau_min', 'grau_desvio', 'grau_mediana',
+            'num_componentes', 'conectividade',
+            'pagerank_medio', 'pagerank_max', 'pagerank_min', 'pagerank_desvio', 'pagerank_mediana',
+            'closeness_medio', 'closeness_max', 'closeness_min', 'closeness_desvio', 'closeness_mediana',
+            'betweenness_medio', 'betweenness_max', 'betweenness_min', 'betweenness_desvio', 'betweenness_mediana',
+            'diametro', 'raio', 'distancia_media',
+            'num_comunidades_greedy', 'modularidade_greedy', 'num_comunidades_label', 'modularidade_label',
+            'razao_vertices_arestas', 'taxa_sucesso', 'qualidade_powerlaw_R', 'powerlaw_alpha'
+        ]
+        agg_map = {col: 'mean' for col in desejadas_mean if col in df.columns}
+        if 'limite_atingido' in df.columns:
+            agg_map['limite_atingido'] = 'sum'
 
-            'densidade': 'mean',
-            'grau_medio': 'mean',
-            'grau_max': 'mean',
-            'grau_min': 'mean',
-            'grau_desvio': 'mean',
-            'grau_mediana': 'mean',
-            'num_componentes': 'mean',
-            'conectividade': 'mean',
-            'pagerank_medio': 'mean',
-            'pagerank_max': 'mean',
-            'pagerank_min': 'mean',
-            'pagerank_desvio': 'mean',
-            'pagerank_mediana': 'mean',
-            'closeness_medio': 'mean',
-            'closeness_max': 'mean',
-            'closeness_min': 'mean',
-            'closeness_desvio': 'mean',
-            'closeness_mediana': 'mean',
-            'betweenness_medio': 'mean',
-            'betweenness_max': 'mean',
-            'betweenness_min': 'mean',
-            'betweenness_desvio': 'mean',
-            'betweenness_mediana': 'mean',
-            'diametro': 'mean',
-            'raio': 'mean',
-            'distancia_media': 'mean',
-            'num_comunidades_greedy': 'mean',
-            'modularidade_greedy': 'mean',
-            'num_comunidades_label': 'mean',
-            'modularidade_label': 'mean',
-            'razao_vertices_arestas': 'mean',
-            'taxa_sucesso': 'mean',
-            'qualidade_powerlaw_R': 'mean',
-            'powerlaw_alpha': 'mean',
-            'limite_atingido': 'sum'
-        }).reset_index()
+        if agg_map:
+            resumo_por_tipo = df.groupby('tipo').agg(agg_map).reset_index()
+        else:
+            # Fallback mínimo quando não há colunas numéricas esperadas (ex.: todas combinações falharam)
+            resumo_por_tipo = df.groupby('tipo').size().reset_index(name='count')
         
         resumo_por_tipo.to_csv(resumo_file, index=False)
         

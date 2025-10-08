@@ -45,7 +45,11 @@ def gerar_comandos_simples(main_dir, seeds, output_file):
         # Gera comando para esta seed
         output_path = os.path.join(seed_dir, "resultados.csv")
         
-        comando = f"export OMP_NUM_THREADS=24 && export MKL_NUM_THREADS=24 && python {script_path} --output_dir {seed_dir} --seeds {seed} &> {seed_dir}/log.txt"
+        comando = (
+            f"mkdir -p {seed_dir} && timeout --signal=SIGKILL 2h "
+            f"bash -lc 'export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
+            f"python -u {script_path} --output_dir {seed_dir} --seeds {seed} --max_vertices 1000000 &> {seed_dir}/log.txt'"
+        )
         
         comandos.append(comando)
     
@@ -86,7 +90,11 @@ def gerar_comandos_powerlaw(main_dir, seeds, output_file):
         # Gera comando para esta seed
         output_path = os.path.join(seed_dir, "resultados.csv")
         
-        comando = f"export OMP_NUM_THREADS=24 && export MKL_NUM_THREADS=24 && python {script_path} --output_dir {seed_dir} --seeds {seed} &> {seed_dir}/log.txt"
+        comando = (
+            f"mkdir -p {seed_dir} && timeout --signal=SIGKILL 2h "
+            f"bash -lc 'export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
+            f"python -u {script_path} --output_dir {seed_dir} --seeds {seed} --max_vertices 1000000 &> {seed_dir}/log.txt'"
+        )
         
         comandos.append(comando)
     
@@ -132,10 +140,18 @@ def gerar_comandos_todos(main_dir, seeds, output_file):
         comandos.append(f"mkdir -p {seed_dir_powerlaw}")
         
         # Comando para experimento Simples (uma linha única, sem quebras)
-        comando_simples = f"export OMP_NUM_THREADS=24 && export MKL_NUM_THREADS=24 && python {script_simples} --output_dir {seed_dir_simples} --seeds {seed} &> {seed_dir_simples}/log.txt"
+        comando_simples = (
+            f"mkdir -p {seed_dir_simples} && timeout --signal=SIGKILL 2h "
+            f"bash -lc 'export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
+            f"python -u {script_simples} --output_dir {seed_dir_simples} --seeds {seed} --max_vertices 1000000 &> {seed_dir_simples}/log.txt'"
+        )
         
         # Comando para experimento Power-Law (uma linha única, sem quebras)
-        comando_powerlaw = f"export OMP_NUM_THREADS=24 && export MKL_NUM_THREADS=24 && python {script_powerlaw} --output_dir {seed_dir_powerlaw} --seeds {seed} &> {seed_dir_powerlaw}/log.txt"
+        comando_powerlaw = (
+            f"mkdir -p {seed_dir_powerlaw} && timeout --signal=SIGKILL 2h "
+            f"bash -lc 'export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
+            f"python -u {script_powerlaw} --output_dir {seed_dir_powerlaw} --seeds {seed} --max_vertices 1000000 &> {seed_dir_powerlaw}/log.txt'"
+        )
         
         comandos.append(comando_simples)
         comandos.append(comando_powerlaw)
@@ -159,14 +175,16 @@ def gerar_comandos_todos(main_dir, seeds, output_file):
     mkdir_file = output_file.replace('.sh', '_mkdir.sh')
     with open(mkdir_file, 'w', encoding='utf-8') as f:
         for comando in comandos:
-            if comando.startswith('mkdir'):
+            # mantém apenas mkdir simples (sem encadeamento com '&&')
+            if comando.startswith('mkdir -p ') and '&&' not in comando:
                 f.write(comando + "\n")
     
     # Gera arquivo separado apenas com comandos python (para GNU parallel)
     python_file = output_file.replace('.sh', '_python.sh')
     with open(python_file, 'w', encoding='utf-8') as f:
         for comando in comandos:
-            if comando.startswith('export'):
+            # mantém apenas os comandos compostos (mkdir -p && timeout ...)
+            if comando.startswith('mkdir -p ') and '&&' in comando and 'timeout --signal=SIGKILL 2h' in comando:
                 f.write(comando + "\n")
     
     print(f"Comandos salvos em: {output_file}")
