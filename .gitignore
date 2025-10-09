@@ -43,6 +43,7 @@ testes_automaticos/
 testes_rapidos/
 testes_*
 resultados_experimentos/
+logs/
 *.txt
 *.csv
 *.png

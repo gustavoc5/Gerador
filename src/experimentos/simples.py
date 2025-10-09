@@ -457,6 +457,16 @@ def main():
                         
                         if resultado:
                             resultados.append(resultado)
+                            # Escrita incremental no CSV consolidado (append)
+                            try:
+                                csv_file_inc = os.path.join(args.output_dir, 'resultados_simples_completo.csv')
+                                df_inc = pd.DataFrame([resultado])
+                                write_header = not os.path.exists(csv_file_inc)
+                                # Garante diretório de saída
+                                os.makedirs(args.output_dir, exist_ok=True)
+                                df_inc.to_csv(csv_file_inc, mode='a', header=write_header, index=False)
+                            except Exception as e:
+                                print(f"  [AVISO] Falha ao escrever incremental: {e}")
                             if resultado['limite_atingido']:
                                 print(f"  [LIMITE] {resultado.get('erro', 'Erro desconhecido')}")
                             else:
@@ -470,54 +480,29 @@ def main():
     if resultados and args.output_format == 'consolidated_csv':
         df = pd.DataFrame(resultados)
         
-        # Arquivo CSV principal
+        # Arquivo CSV principal (reescreve consolidado final; incremental já ocorreu)
         csv_file = os.path.join(args.output_dir, 'resultados_simples_completo.csv')
         df.to_csv(csv_file, index=False)
         
-        # Arquivo de resumo
+        # Arquivo de resumo (resiliente a colunas ausentes)
         resumo_file = os.path.join(args.output_dir, 'resumo_simples_completo.csv')
-        
-        # Cria resumo agrupado por tipo
-        resumo_por_tipo = df.groupby('tipo').agg({
-            'tempo_geracao': 'mean',
-            'densidade': 'mean',
-            'grau_medio': 'mean',
-            'grau_max': 'mean',
-            'grau_min': 'mean',
-            'grau_desvio': 'mean',
-            'grau_mediana': 'mean',
-            'num_componentes': 'mean',
-            'conectividade': 'mean',
-            'pagerank_medio': 'mean',
-            'pagerank_max': 'mean',
-            'pagerank_min': 'mean',
-            'pagerank_desvio': 'mean',
-            'pagerank_mediana': 'mean',
-            'closeness_medio': 'mean',
-            'closeness_max': 'mean',
-            'closeness_min': 'mean',
-            'closeness_desvio': 'mean',
-            'closeness_mediana': 'mean',
-            'betweenness_medio': 'mean',
-            'betweenness_max': 'mean',
-            'betweenness_min': 'mean',
-            'betweenness_desvio': 'mean',
-            'betweenness_mediana': 'mean',
-            'diametro': 'mean',
-            'raio': 'mean',
-            'distancia_media': 'mean',
-            'num_comunidades_greedy': 'mean',
-            'modularidade_greedy': 'mean',
-            'num_comunidades_label': 'mean',
-            'modularidade_label': 'mean',
-            'razao_vertices_arestas': 'mean',
-            'taxa_sucesso': 'mean',
-            'consistencia_estrutural': 'mean',
-            'similaridade_media': 'mean',
-            'n_outliers_estruturais': 'mean',
-            'limite_atingido': 'sum'
-        }).reset_index()
-        
+        desejadas_mean = [
+            'densidade', 'grau_medio', 'grau_max', 'grau_min', 'grau_desvio', 'grau_mediana',
+            'num_componentes', 'conectividade',
+            'pagerank_medio', 'pagerank_max', 'pagerank_min', 'pagerank_desvio', 'pagerank_mediana',
+            'closeness_medio', 'closeness_max', 'closeness_min', 'closeness_desvio', 'closeness_mediana',
+            'betweenness_medio', 'betweenness_max', 'betweenness_min', 'betweenness_desvio', 'betweenness_mediana',
+            'diametro', 'raio', 'distancia_media',
+            'num_comunidades_greedy', 'modularidade_greedy', 'num_comunidades_label', 'modularidade_label',
+            'razao_vertices_arestas', 'taxa_sucesso', 'consistencia_estrutural', 'similaridade_media', 'n_outliers_estruturais'
+        ]
+        agg_map = {col: 'mean' for col in desejadas_mean if col in df.columns}
+        if 'limite_atingido' in df.columns:
+            agg_map['limite_atingido'] = 'sum'
+        if agg_map:
+            resumo_por_tipo = df.groupby('tipo').agg(agg_map).reset_index()
+        else:
+            resumo_por_tipo = df.groupby('tipo').size().reset_index(name='count')
         resumo_por_tipo.to_csv(resumo_file, index=False)
         
         print("\n" + "=" * 80)
