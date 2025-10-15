@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 EXPERIMENTO POWER-LAW COMPLETO
 Experimento unificado para o gerador Power-Law com todas as métricas possíveis.

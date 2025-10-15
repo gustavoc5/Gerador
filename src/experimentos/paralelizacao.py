@@ -48,7 +48,7 @@ def gerar_comandos_simples(main_dir, seeds, output_file):
         comando = (
             f"mkdir -p {seed_dir} && timeout --signal=SIGKILL 2h "
             f"bash -lc 'export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
-            f"python -u {script_path} --output_dir {seed_dir} --seeds {seed} --max_vertices 1000000 &> {seed_dir}/log.txt'"
+            f"python3 -u {script_path} --output_dir {seed_dir} --seeds {seed} --max_vertices 1000000 &> {seed_dir}/log.txt'"
         )
         
         comandos.append(comando)
@@ -93,7 +93,7 @@ def gerar_comandos_powerlaw(main_dir, seeds, output_file):
         comando = (
             f"mkdir -p {seed_dir} && timeout --signal=SIGKILL 2h "
             f"bash -lc 'export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
-            f"python -u {script_path} --output_dir {seed_dir} --seeds {seed} --max_vertices 1000000 &> {seed_dir}/log.txt'"
+            f"python3 -u {script_path} --output_dir {seed_dir} --seeds {seed} --max_vertices 1000000 &> {seed_dir}/log.txt'"
         )
         
         comandos.append(comando)
@@ -143,14 +143,14 @@ def gerar_comandos_todos(main_dir, seeds, output_file):
         comando_simples = (
             f"mkdir -p {seed_dir_simples} && timeout --signal=SIGKILL 2h "
             f"bash -lc 'export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
-            f"python -u {script_simples} --output_dir {seed_dir_simples} --seeds {seed} --max_vertices 1000000 &> {seed_dir_simples}/log.txt'"
+            f"python3 -u {script_simples} --output_dir {seed_dir_simples} --seeds {seed} --max_vertices 1000000 &> {seed_dir_simples}/log.txt'"
         )
         
         # Comando para experimento Power-Law (uma linha única, sem quebras)
         comando_powerlaw = (
             f"mkdir -p {seed_dir_powerlaw} && timeout --signal=SIGKILL 2h "
             f"bash -lc 'export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
-            f"python -u {script_powerlaw} --output_dir {seed_dir_powerlaw} --seeds {seed} --max_vertices 1000000 &> {seed_dir_powerlaw}/log.txt'"
+            f"python3 -u {script_powerlaw} --output_dir {seed_dir_powerlaw} --seeds {seed} --max_vertices 1000000 &> {seed_dir_powerlaw}/log.txt'"
         )
         
         comandos.append(comando_simples)
@@ -240,8 +240,11 @@ def gerar_script_concatenacao(main_dir, seeds, output_file):
         f.write("echo \"  - ${MAIN_DIR}/resultados_experimentos/exp_simples_completo/resultados_simples_completo.csv\"\n")
         f.write("echo \"  - ${MAIN_DIR}/resultados_experimentos/exp_powerlaw_completo/resultados_powerlaw_completo.csv\"\n")
     
-    # Torna o script executável
-    os.chmod(output_file, 0o755)
+    # Torna o script executável (ignora erros em sistemas montados NTFS/WSL)
+    try:
+        os.chmod(output_file, 0o755)
+    except (PermissionError, OSError):
+        pass  # Não é crítico; script pode ser executado com bash
     
     print(f"Script de concatenação salvo em: {output_file}")
 

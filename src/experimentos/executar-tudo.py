@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 EXECUTOR DE TODOS OS EXPERIMENTOS
 Executa sequencialmente os experimentos Simples e Power-Law.

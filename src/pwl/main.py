@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from pwl import geraGrafoPwl, tipoGrafo
 # from distribuicao import validaDistribuicao  # Arquivo não existe
 from visualizacao import visualizaGrafo

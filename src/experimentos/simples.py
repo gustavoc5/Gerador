@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 EXPERIMENTO SIMPLES COMPLETO
 Experimento unificado para o gerador Simples com todas as métricas possíveis.

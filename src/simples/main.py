@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 from gerador import geraDataset, verificaAresta
 from utils import (
     criaMatrizAdjacencias,
