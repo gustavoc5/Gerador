@@ -20,6 +20,14 @@ import sys
 import argparse
 from pathlib import Path
 
+def join_path(base: str, *parts: str) -> str:
+    """Concatena caminhos respeitando POSIX quando base inicia com '/'."""
+    if base.startswith('/'):
+        cleaned = [base.rstrip('/')]
+        cleaned += [p.strip('/\\') for p in parts]
+        return '/'.join(cleaned)
+    return os.path.join(base, *parts)
+
 def gerar_comandos_simples(main_dir, seeds, output_file):
     """
     Gera comandos para o experimento Simples Completo.
@@ -33,17 +41,17 @@ def gerar_comandos_simples(main_dir, seeds, output_file):
     NUM_COMPONENTES = [0, 1]  # 0=Aleatório, 1=Conexo
     
     # Script Python
-    script_path = os.path.join(main_dir, "src/experimentos/simples.py")
+    script_path = join_path(main_dir, "src/experimentos/simples.py")
     
     comandos = []
     
     for seed in seeds:
         # Cria diretório para esta seed
-        seed_dir = os.path.join(main_dir, f"resultados_experimentos/exp_simples_completo/{seed}")
+        seed_dir = join_path(main_dir, f"resultados_experimentos/exp_simples_completo/{seed}")
         comandos.append(f"mkdir -p {seed_dir}")
         
         # Gera comando para esta seed
-        output_path = os.path.join(seed_dir, "resultados.csv")
+        output_path = join_path(seed_dir, "resultados.csv")
         
         comando = (
             f"mkdir -p {seed_dir} && timeout --signal=SIGKILL 2h "
@@ -78,17 +86,17 @@ def gerar_comandos_powerlaw(main_dir, seeds, output_file):
     CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
     
     # Script Python
-    script_path = os.path.join(main_dir, "src/experimentos/power_law.py")
+    script_path = join_path(main_dir, "src/experimentos/power_law.py")
     
     comandos = []
     
     for seed in seeds:
         # Cria diretório para esta seed
-        seed_dir = os.path.join(main_dir, f"resultados_experimentos/exp_powerlaw_completo/{seed}")
+        seed_dir = join_path(main_dir, f"resultados_experimentos/exp_powerlaw_completo/{seed}")
         comandos.append(f"mkdir -p {seed_dir}")
         
         # Gera comando para esta seed
-        output_path = os.path.join(seed_dir, "resultados.csv")
+        output_path = join_path(seed_dir, "resultados.csv")
         
         comando = (
             f"mkdir -p {seed_dir} && timeout --signal=SIGKILL 2h "
@@ -126,15 +134,15 @@ def gerar_comandos_todos(main_dir, seeds, output_file):
     CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
     
     # Scripts Python
-    script_simples = os.path.join(main_dir, "src/experimentos/simples.py")
-    script_powerlaw = os.path.join(main_dir, "src/experimentos/power_law.py")
+    script_simples = join_path(main_dir, "src/experimentos/simples.py")
+    script_powerlaw = join_path(main_dir, "src/experimentos/power_law.py")
     
     comandos = []
     
     for seed in seeds:
         # Cria diretórios para esta seed
-        seed_dir_simples = os.path.join(main_dir, f"resultados_experimentos/exp_simples_completo/{seed}")
-        seed_dir_powerlaw = os.path.join(main_dir, f"resultados_experimentos/exp_powerlaw_completo/{seed}")
+        seed_dir_simples = join_path(main_dir, f"resultados_experimentos/exp_simples_completo/{seed}")
+        seed_dir_powerlaw = join_path(main_dir, f"resultados_experimentos/exp_powerlaw_completo/{seed}")
         
         comandos.append(f"mkdir -p {seed_dir_simples}")
         comandos.append(f"mkdir -p {seed_dir_powerlaw}")
@@ -262,7 +270,7 @@ def main():
     args = parser.parse_args()
     
     # Converte para caminho absoluto
-    main_dir = os.path.abspath(args.main_dir)
+    main_dir = args.main_dir if args.main_dir.startswith('/') else os.path.abspath(args.main_dir)
     output_dir = os.path.abspath(args.output_dir)
     
     # Cria diretório de saída
