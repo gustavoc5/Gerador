@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 Script de teste para o gerador de grafos power-law.
 Gera grafos e calcula métricas, salvando resultados em arquivos .txt detalhados.
