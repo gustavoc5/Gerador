@@ -29,6 +29,15 @@ import time
 import pandas as pd
 import numpy as np
 from datetime import datetime
+import signal
+# Parâmetros ajustáveis (podem ser alterados via CLI em main)
+MID_THRESHOLD = 10000
+LARGE_THRESHOLD = 100000
+CLOSENESS_SAMPLE_FRAC = 0.02  # 2% dos nós
+BETWEENNESS_K_FULL = 100
+BETWEENNESS_K_MID = 50
+PAGERANK_ITER_MID = 50
+PAGERANK_ITER_LARGE = 30
 
 # Adiciona o diretório src ao path
 sys.path.append(os.path.dirname(__file__))
@@ -65,7 +74,7 @@ from constants import TIPOS_GRAFOS, TIPOS_VALIDOS, DENSIDADE_ESPARSA_MAX, DENSID
 
 
 
-def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_grafo):
+def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_grafo, seed_metrics: int | None = None):
     """Calcula todas as métricas possíveis do grafo a partir da lista de arestas (sem matriz)."""
     import networkx as nx
     
@@ -81,6 +90,11 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     G.add_edges_from(arestas)
     
     metricas = {}
+    n = int(num_vertices_total)
+    # Perfis por tamanho
+    perfil_full = n <= MID_THRESHOLD
+    perfil_mid = MID_THRESHOLD < n <= LARGE_THRESHOLD
+    perfil_large = n > LARGE_THRESHOLD
     
     # ===== MÉTRICAS BÁSICAS =====
     metricas['num_vertices'] = G.number_of_nodes()
@@ -122,63 +136,125 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     
     # ===== MÉTRICAS DE CENTRALIDADE =====
     try:
-        pagerank = nx.pagerank(G, max_iter=100)
+        if perfil_large:
+            # PageRank leve em grafos muito grandes
+            try:
+                from networkx.algorithms.link_analysis.pagerank_alg import pagerank_scipy as pr_scipy
+                pagerank = pr_scipy(G, max_iter=PAGERANK_ITER_LARGE, tol=1e-4)
+            except Exception:
+                pagerank = nx.pagerank(G, max_iter=PAGERANK_ITER_LARGE, tol=1e-4)
+        elif perfil_mid:
+            pagerank = nx.pagerank(G, max_iter=PAGERANK_ITER_MID)
+        else:
+            pagerank = nx.pagerank(G, max_iter=100)
         metricas['pagerank_medio'] = np.mean(list(pagerank.values()))
         metricas['pagerank_max'] = max(pagerank.values())
         metricas['pagerank_min'] = min(pagerank.values())
         metricas['pagerank_desvio'] = np.std(list(pagerank.values()))
         metricas['pagerank_mediana'] = np.median(list(pagerank.values()))
-    except:
+    except Exception:
         metricas['pagerank_medio'] = metricas['pagerank_max'] = metricas['pagerank_min'] = 0.0
         metricas['pagerank_desvio'] = metricas['pagerank_mediana'] = 0.0
     
-    try:
-        closeness = nx.closeness_centrality(G)
-        metricas['closeness_medio'] = np.mean(list(closeness.values()))
-        metricas['closeness_max'] = max(closeness.values())
-        metricas['closeness_min'] = min(closeness.values())
-        metricas['closeness_desvio'] = np.std(list(closeness.values()))
-        metricas['closeness_mediana'] = np.median(list(closeness.values()))
-    except:
+    if not perfil_large:
+        try:
+            if perfil_mid and n > 0:
+                # Closeness por amostragem
+                amostra = max(1, int(max(1, int(n * CLOSENESS_SAMPLE_FRAC))))
+                import random as _rnd
+                rnd = _rnd.Random(seed_metrics if seed_metrics is not None else 0)
+                nodes = list(G.nodes())
+                sample_nodes = rnd.sample(nodes, min(len(nodes), amostra))
+                vals = []
+                for u in sample_nodes:
+                    dist = nx.single_source_shortest_path_length(G, u)
+                    s = sum(dist.values())
+                    reach = len(dist)
+                    if s > 0.0 and n > 1:
+                        vals.append((reach - 1) / s * ((reach - 1) / (n - 1)))
+                if vals:
+                    metricas['closeness_medio'] = float(np.mean(vals))
+                    metricas['closeness_max'] = float(np.max(vals))
+                    metricas['closeness_min'] = float(np.min(vals))
+                    metricas['closeness_desvio'] = float(np.std(vals))
+                    metricas['closeness_mediana'] = float(np.median(vals))
+                else:
+                    metricas['closeness_medio'] = metricas['closeness_max'] = metricas['closeness_min'] = 0.0
+                    metricas['closeness_desvio'] = metricas['closeness_mediana'] = 0.0
+                metricas['closeness_amostrado'] = True
+            else:
+                closeness = nx.closeness_centrality(G)
+                metricas['closeness_medio'] = np.mean(list(closeness.values()))
+                metricas['closeness_max'] = max(closeness.values())
+                metricas['closeness_min'] = min(closeness.values())
+                metricas['closeness_desvio'] = np.std(list(closeness.values()))
+                metricas['closeness_mediana'] = np.median(list(closeness.values()))
+                metricas['closeness_amostrado'] = False
+        except Exception:
+            metricas['closeness_medio'] = metricas['closeness_max'] = metricas['closeness_min'] = 0.0
+            metricas['closeness_desvio'] = metricas['closeness_mediana'] = 0.0
+    else:
         metricas['closeness_medio'] = metricas['closeness_max'] = metricas['closeness_min'] = 0.0
         metricas['closeness_desvio'] = metricas['closeness_mediana'] = 0.0
     
-    try:
-        betweenness = nx.betweenness_centrality(G, k=min(100, G.number_of_nodes()))
-        metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
-        metricas['betweenness_max'] = max(betweenness.values())
-        metricas['betweenness_min'] = min(betweenness.values())
-        metricas['betweenness_desvio'] = np.std(list(betweenness.values()))
-        metricas['betweenness_mediana'] = np.median(list(betweenness.values()))
-    except:
+    if not perfil_large:
+        try:
+            k_bt = min(BETWEENNESS_K_FULL, G.number_of_nodes()) if perfil_full else min(BETWEENNESS_K_MID, G.number_of_nodes())
+            try:
+                betweenness = nx.betweenness_centrality(G, k=k_bt, seed=seed_metrics)
+            except TypeError:
+                betweenness = nx.betweenness_centrality(G, k=k_bt)
+            metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
+            metricas['betweenness_max'] = max(betweenness.values())
+            metricas['betweenness_min'] = min(betweenness.values())
+            metricas['betweenness_desvio'] = np.std(list(betweenness.values()))
+            metricas['betweenness_mediana'] = np.median(list(betweenness.values()))
+        except Exception:
+            metricas['betweenness_medio'] = metricas['betweenness_max'] = metricas['betweenness_min'] = 0.0
+            metricas['betweenness_desvio'] = metricas['betweenness_mediana'] = 0.0
+    else:
         metricas['betweenness_medio'] = metricas['betweenness_max'] = metricas['betweenness_min'] = 0.0
         metricas['betweenness_desvio'] = metricas['betweenness_mediana'] = 0.0
     
     # ===== MÉTRICAS DE DISTÂNCIA =====
-    try:
-        if G.is_connected() or (G.is_directed() and nx.is_strongly_connected(G)):
-            metricas['diametro'] = nx.diameter(G)
-            metricas['raio'] = nx.radius(G)
-            metricas['distancia_media'] = nx.average_shortest_path_length(G)
-        else:
+    if perfil_full:
+        try:
+            if G.is_connected() or (G.is_directed() and nx.is_strongly_connected(G)):
+                metricas['diametro'] = nx.diameter(G)
+                metricas['raio'] = nx.radius(G)
+                metricas['distancia_media'] = nx.average_shortest_path_length(G)
+            else:
+                metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
+        except Exception:
             metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
-    except:
+    else:
         metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
     
     # ===== MÉTRICAS DE COMUNIDADES =====
-    try:
-        communities_greedy = nx.community.greedy_modularity_communities(G.to_undirected())
-        metricas['num_comunidades_greedy'] = len(communities_greedy)
-        metricas['modularidade_greedy'] = nx.community.modularity(G.to_undirected(), communities_greedy)
-    except:
+    if not perfil_large:
+        try:
+            G_und = G.to_undirected()
+            communities_greedy = nx.community.greedy_modularity_communities(G_und)
+            metricas['num_comunidades_greedy'] = len(communities_greedy)
+            metricas['modularidade_greedy'] = nx.community.modularity(G_und, communities_greedy)
+        except Exception:
+            metricas['num_comunidades_greedy'] = 1
+            metricas['modularidade_greedy'] = 0.0
+        
+        try:
+            # Preferir versão assíncrona com seed
+            try:
+                communities_label = list(nx.community.asyn_lpa_communities(G_und, seed=seed_metrics))
+            except Exception:
+                communities_label = list(nx.community.label_propagation_communities(G_und))
+            metricas['num_comunidades_label'] = len(communities_label)
+            metricas['modularidade_label'] = nx.community.modularity(G_und, communities_label)
+        except Exception:
+            metricas['num_comunidades_label'] = 1
+            metricas['modularidade_label'] = 0.0
+    else:
         metricas['num_comunidades_greedy'] = 1
         metricas['modularidade_greedy'] = 0.0
-    
-    try:
-        communities_label = nx.community.label_propagation_communities(G.to_undirected())
-        metricas['num_comunidades_label'] = len(communities_label)
-        metricas['modularidade_label'] = nx.community.modularity(G.to_undirected(), communities_label)
-    except:
         metricas['num_comunidades_label'] = 1
         metricas['modularidade_label'] = 0.0
     
@@ -188,23 +264,102 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     
     return metricas
 
-def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, preferencia_densidade, numC, output_format='consolidated_csv', output_dir='./resultados', naming_pattern='metricas_{seed}_tipo{tipo}_v{vertices}_dens{densidade}_comp{componentes}_{numero}.csv', num_grafos=50):
+def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, preferencia_densidade, numC, output_format='consolidated_csv', output_dir='./resultados', naming_pattern='metricas_{seed}_tipo{tipo}_v{vertices}_dens{densidade}_comp{componentes}_{numero}.csv', num_grafos=50, timeout_por_grafo_s: int = 0):
     """Executa teste completo do gerador simples com 50 grafos."""
     try:
         
-        # Gera grafos com os mesmos parâmetros (configurável por --num_grafos)
-        datasets = geraDataset(tipo, numV, numA, seed, n=num_grafos, numC=numC, fator=0)
-        
-        if not datasets or len(datasets) == 0:
-            return None
-        
-        # Analisa todos os grafos gerados
+        # Analisa grafos (com suporte a timeout por grafo)
         todas_metricas = []
         grafos_networkx = []  # Lista para análise de equivalência estrutural
-        
-        for i, arestas in enumerate(datasets):
+
+        def _timeout_handler(signum, frame):
+            raise TimeoutError("Timeout por grafo atingido")
+
+        for i in range(num_grafos):
+            # Geração por réplica (permite timeout por grafo); usa seed variada
+            item = None
+            tempo_geracao_s = None
+            try:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.signal(signal.SIGALRM, _timeout_handler)
+                    signal.alarm(int(timeout_por_grafo_s))
+                # gera 1 grafo por vez, com seed offset
+                item_list = geraDataset(tipo, numV, numA, seed + i, n=1, numC=numC, fator=0, medir_tempo=True)
+                if item_list:
+                    item = item_list[0]
+                if isinstance(item, tuple):
+                    arestas, tempo_geracao_s = item
+                else:
+                    arestas = item
+                # Cancela alarme após geração
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)
+            except TimeoutError:
+                # Cancela alarme e segue para próxima réplica
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)
+                continue
+
+            if item is None:
+                continue
+
+            if isinstance(item, tuple):
+                arestas, tempo_geracao_s = item
+            else:
+                arestas = item
+                tempo_geracao_s = None
             tipo_detectado = tipo  # evitamos reconstrução por matriz
-            metricas_grafo = calcula_metricas_completas_por_arestas(arestas, numV, tipo_detectado)
+            # Aplica timeout também no bloco de métricas, se configurado
+            # Constrói G_nx para equivalência estrutural antes das métricas
+            import networkx as nx
+            G_nx = nx.DiGraph() if tipo in [1, 21, 31] else nx.Graph()
+            G_nx.add_nodes_from(range(numV))
+            G_nx.add_edges_from(arestas)
+            grafos_networkx.append(G_nx)
+
+            try:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.signal(signal.SIGALRM, _timeout_handler)
+                    signal.alarm(int(timeout_por_grafo_s))
+                metricas_grafo = calcula_metricas_completas_por_arestas(arestas, numV, tipo_detectado, seed_metrics=(seed + i))
+            except TimeoutError:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)
+                # Calcula e registra métricas básicas mesmo com timeout
+                try:
+                    metricas_grafo = {}
+                    metricas_grafo['num_vertices'] = G_nx.number_of_nodes()
+                    metricas_grafo['num_arestas'] = G_nx.number_of_edges()
+                    metricas_grafo['tipo_detectado'] = tipo_detectado
+                    # Densidade
+                    if G_nx.number_of_nodes() > 1:
+                        max_arestas = G_nx.number_of_nodes() * (G_nx.number_of_nodes() - 1)
+                        if not G_nx.is_directed():
+                            max_arestas //= 2
+                        metricas_grafo['densidade'] = G_nx.number_of_edges() / max_arestas
+                    else:
+                        metricas_grafo['densidade'] = 0.0
+                    # Grau básicos
+                    graus = [d for n, d in G_nx.degree()]
+                    if graus:
+                        metricas_grafo['grau_medio'] = float(np.mean(graus))
+                        metricas_grafo['grau_max'] = int(max(graus))
+                        metricas_grafo['grau_min'] = int(min(graus))
+                        metricas_grafo['grau_desvio'] = float(np.std(graus))
+                        metricas_grafo['grau_mediana'] = float(np.median(graus))
+                    else:
+                        metricas_grafo['grau_medio'] = metricas_grafo['grau_max'] = metricas_grafo['grau_min'] = 0
+                        metricas_grafo['grau_desvio'] = metricas_grafo['grau_mediana'] = 0
+                    metricas_grafo['razao_vertices_arestas'] = (
+                        metricas_grafo['num_vertices'] / metricas_grafo['num_arestas']
+                        if metricas_grafo['num_arestas'] > 0 else 0.0
+                    )
+                    metricas_grafo['metricas_incompletas'] = True
+                except Exception:
+                    continue
+            finally:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)
             
             # Adiciona parâmetros do teste às métricas
             metricas_grafo.update({
@@ -216,7 +371,8 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
                 'estrategia_arestas': estrategia_arestas,
                 'preferencia_densidade': preferencia_densidade,
                 'numC': numC,
-                'numero': i + 1
+                'numero': i + 1,
+                'tempo_geracao_s': tempo_geracao_s if tempo_geracao_s is not None else 0.0
             })
             
             # Se formato individual, salva arquivo CSV imediatamente
@@ -241,13 +397,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
             
             todas_metricas.append(metricas_grafo)
             
-            # Converte para NetworkX para análise de equivalência estrutural
-            # Reaproveita o grafo via arestas para análise de equivalência
-            import networkx as nx
-            G_nx = nx.DiGraph() if tipo in [1, 21, 31] else nx.Graph()
-            G_nx.add_nodes_from(range(numV))
-            G_nx.add_edges_from(arestas)
-            grafos_networkx.append(G_nx)
+            # (já incluído antes das métricas)
         
         # Calcula médias apenas para métricas numéricas
         def _is_numeric(value):
@@ -262,6 +412,13 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
                     valores_numericos.append(float(v))
             if valores_numericos:
                 metricas_medias[chave] = float(np.mean(valores_numericos))
+
+        # Agregados adicionais de tempo de geração (se existir a coluna)
+        if 'tempo_geracao_s' in todas_metricas[0]:
+            tempos = [float(m.get('tempo_geracao_s', 0.0)) for m in todas_metricas]
+            if tempos:
+                metricas_medias['tempo_geracao_medio_s'] = float(np.mean(tempos))
+                metricas_medias['tempo_geracao_mediana_s'] = float(np.median(tempos))
         
 
         
@@ -288,7 +445,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
         
         # Adiciona métricas básicas
         metricas_medias.update({
-            'taxa_sucesso': len(datasets) / num_grafos,
+            'taxa_sucesso': len(todas_metricas) / num_grafos,
             'limite_atingido': False
         })
         
@@ -348,8 +505,8 @@ def main():
     parser = argparse.ArgumentParser(description='Experimento Simples Completo - Todas as métricas')
     parser.add_argument('--output_dir', default='./resultados_experimentos/exp_simples_completo',
                        help='Diretório de saída')
-    parser.add_argument('--max_vertices', type=int, default=10000,
-                       help='Máximo de vértices para teste (padrão: 10000)')
+    parser.add_argument('--max_vertices', type=int, default=1000000,
+                       help='Máximo de vértices para teste (padrão: 1000000)')
     parser.add_argument('--seeds', nargs='+', type=int, default=[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
                        help='Lista de seeds para teste (aceita seed única ou múltiplas)')
     parser.add_argument('--teste_rapido', action='store_true',
@@ -358,6 +515,8 @@ def main():
                        choices=['consolidated_csv', 'individual_csv'], 
                        default='consolidated_csv',
                        help='Formato de saída: consolidated_csv (1 arquivo) ou individual_csv (1 arquivo por grafo)')
+    parser.add_argument('--timeout_por_grafo_s', type=int, default=600,
+                       help='Timeout por grafo (segundos). Padrão: 600 (10 minutos). Use 0 para desativar.')
     parser.add_argument('--naming_pattern', 
                        type=str,
                        default='metricas_{seed}_tipo{tipo}_v{vertices}_dens{densidade}_comp{componentes}_{numero}.csv',
@@ -387,11 +546,15 @@ def main():
         SEEDS = [1000, 2000]
         num_grafos_exec = args.num_grafos
     else:
-        TAMANHOS = [100, 1000, 10000]
-        if args.max_vertices >= 100000:
-            TAMANHOS.append(100000)
+        # Ordem decrescente de tamanhos: prioriza maiores primeiro
+        TAMANHOS = []
         if args.max_vertices >= 1000000:
             TAMANHOS.append(1000000)
+        if args.max_vertices >= 100000:
+            TAMANHOS.append(100000)
+        # Sempre incluir os menores (até o limite permitido)
+        base = [10000, 1000, 100]
+        TAMANHOS.extend([v for v in base if v <= args.max_vertices])
         PREFERENCIAS_DENSIDADE = [0, 1, 2]  # Sem preferência, Esparso, Denso
         NUM_COMPONENTES = [0, 1]  # Aleatório, Conexo
         SEEDS = args.seeds
@@ -451,9 +614,19 @@ def main():
                         
                         print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {pref_texto} - {comp_texto} - Seed={seed}")
                         
+                        # Réplicas por tamanho
+                        if numV >= 1000000:
+                            num_grafos_combo = 10
+                        elif numV >= 100000:
+                            num_grafos_combo = 20
+                        elif numV >= 10000:
+                            num_grafos_combo = 30
+                        else:
+                            num_grafos_combo = 50
+
                         resultado = executa_teste_simples_completo(
                             tipo, numV, numA, seed, "Proporcional", pref_dens, 
-                            numC, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_exec
+                            numC, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_combo, timeout_por_grafo_s=args.timeout_por_grafo_s
                         )
                         
                         if resultado:
