@@ -74,7 +74,7 @@ from constants import TIPOS_GRAFOS, TIPOS_VALIDOS, DENSIDADE_ESPARSA_MAX, DENSID
 
 
 
-def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_grafo):
+def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_grafo, seed_metrics: int | None = None):
     """Calcula todas as métricas possíveis do grafo a partir da lista de arestas (sem matriz)."""
     import networkx as nx
     
@@ -162,8 +162,9 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
                 # Closeness por amostragem
                 amostra = max(1, int(max(1, int(n * CLOSENESS_SAMPLE_FRAC))))
                 import random as _rnd
+                rnd = _rnd.Random(seed_metrics if seed_metrics is not None else 0)
                 nodes = list(G.nodes())
-                sample_nodes = _rnd.sample(nodes, min(len(nodes), amostra))
+                sample_nodes = rnd.sample(nodes, min(len(nodes), amostra))
                 vals = []
                 for u in sample_nodes:
                     dist = nx.single_source_shortest_path_length(G, u)
@@ -199,7 +200,10 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     if not perfil_large:
         try:
             k_bt = min(BETWEENNESS_K_FULL, G.number_of_nodes()) if perfil_full else min(BETWEENNESS_K_MID, G.number_of_nodes())
-            betweenness = nx.betweenness_centrality(G, k=k_bt)
+            try:
+                betweenness = nx.betweenness_centrality(G, k=k_bt, seed=seed_metrics)
+            except TypeError:
+                betweenness = nx.betweenness_centrality(G, k=k_bt)
             metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
             metricas['betweenness_max'] = max(betweenness.values())
             metricas['betweenness_min'] = min(betweenness.values())
@@ -238,7 +242,11 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
             metricas['modularidade_greedy'] = 0.0
         
         try:
-            communities_label = nx.community.label_propagation_communities(G_und)
+            # Preferir versão assíncrona com seed
+            try:
+                communities_label = list(nx.community.asyn_lpa_communities(G_und, seed=seed_metrics))
+            except Exception:
+                communities_label = list(nx.community.label_propagation_communities(G_und))
             metricas['num_comunidades_label'] = len(communities_label)
             metricas['modularidade_label'] = nx.community.modularity(G_und, communities_label)
         except Exception:
@@ -313,7 +321,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
                 if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
                     signal.signal(signal.SIGALRM, _timeout_handler)
                     signal.alarm(int(timeout_por_grafo_s))
-                metricas_grafo = calcula_metricas_completas_por_arestas(arestas, numV, tipo_detectado)
+                metricas_grafo = calcula_metricas_completas_por_arestas(arestas, numV, tipo_detectado, seed_metrics=(seed + i))
             except TimeoutError:
                 if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
                     signal.alarm(0)
@@ -602,9 +610,19 @@ def main():
                         
                         print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {pref_texto} - {comp_texto} - Seed={seed}")
                         
+                        # Réplicas por tamanho
+                        if numV >= 1000000:
+                            num_grafos_combo = 10
+                        elif numV >= 100000:
+                            num_grafos_combo = 20
+                        elif numV >= 10000:
+                            num_grafos_combo = 30
+                        else:
+                            num_grafos_combo = 50
+
                         resultado = executa_teste_simples_completo(
                             tipo, numV, numA, seed, "Proporcional", pref_dens, 
-                            numC, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_exec, timeout_por_grafo_s=args.timeout_por_grafo_s
+                            numC, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_combo, timeout_por_grafo_s=args.timeout_por_grafo_s
                         )
                         
                         if resultado:

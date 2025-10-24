@@ -134,7 +134,7 @@ def calcula_qualidade_powerlaw(graus):
         print(f"ERRO no cálculo power-law: {e}")
         return 0.0, 0.0, 0.0, 0.0
 
-def calcula_metricas_completas_por_grafo(G, tipo_grafo, graus=None):
+def calcula_metricas_completas_por_grafo(G, tipo_grafo, graus=None, seed_metrics: int | None = None):
     """Calcula todas as métricas possíveis do grafo diretamente do objeto Graph."""
     metricas = {}
     n = int(G.number_of_nodes())
@@ -225,7 +225,10 @@ def calcula_metricas_completas_por_grafo(G, tipo_grafo, graus=None):
     if not perfil_large:
         try:
             k_bt = min(100, G.number_of_nodes()) if perfil_full else min(50, G.number_of_nodes())
-            betweenness = nx.betweenness_centrality(G, k=k_bt)
+            try:
+                betweenness = nx.betweenness_centrality(G, k=k_bt, seed=seed_metrics)
+            except TypeError:
+                betweenness = nx.betweenness_centrality(G, k=k_bt)
             metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
             metricas['betweenness_max'] = max(betweenness.values())
             metricas['betweenness_min'] = min(betweenness.values())
@@ -264,7 +267,10 @@ def calcula_metricas_completas_por_grafo(G, tipo_grafo, graus=None):
             metricas['modularidade_greedy'] = 0.0
         
         try:
-            communities_label = nx.community.label_propagation_communities(G_und)
+            try:
+                communities_label = list(nx.community.asyn_lpa_communities(G_und, seed=seed_metrics))
+            except Exception:
+                communities_label = list(nx.community.label_propagation_communities(G_und))
             metricas['num_comunidades_label'] = len(communities_label)
             metricas['modularidade_label'] = nx.community.modularity(G_und, communities_label)
         except Exception:
@@ -343,7 +349,7 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='cons
                 if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
                     signal.signal(signal.SIGALRM, lambda s, f: (_ for _ in ()).throw(TimeoutError("Timeout por grafo atingido")))
                     signal.alarm(int(timeout_por_grafo_s))
-                metricas = calcula_metricas_completas_por_grafo(G, tipo_detectado, graus)
+                metricas = calcula_metricas_completas_por_grafo(G, tipo_detectado, graus, seed_metrics=(seed + i))
             except TimeoutError:
                 if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
                     signal.alarm(0)
@@ -560,8 +566,18 @@ def main():
                     
                     print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {categoria_gamma} (gamma={gamma:.3f}) - Seed={seed}")
                     
+                    # Réplicas por tamanho
+                    if numV >= 1000000:
+                        num_grafos_combo = 10
+                    elif numV >= 100000:
+                        num_grafos_combo = 20
+                    elif numV >= 10000:
+                        num_grafos_combo = 30
+                    else:
+                        num_grafos_combo = 50
+
                     resultado = executa_teste_powerlaw_completo(
-                        tipo, numV, gamma, seed, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_exec, timeout_por_grafo_s=args.timeout_por_grafo_s
+                        tipo, numV, gamma, seed, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_combo, timeout_por_grafo_s=args.timeout_por_grafo_s
                     )
                     
                     if resultado:
