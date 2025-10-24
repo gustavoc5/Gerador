@@ -30,6 +30,14 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import signal
+# Parâmetros ajustáveis (podem ser alterados via CLI em main)
+MID_THRESHOLD = 10000
+LARGE_THRESHOLD = 100000
+CLOSENESS_SAMPLE_FRAC = 0.02  # 2% dos nós
+BETWEENNESS_K_FULL = 100
+BETWEENNESS_K_MID = 50
+PAGERANK_ITER_MID = 50
+PAGERANK_ITER_LARGE = 30
 
 # Adiciona o diretório src ao path
 sys.path.append(os.path.dirname(__file__))
@@ -84,9 +92,9 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     metricas = {}
     n = int(num_vertices_total)
     # Perfis por tamanho
-    perfil_full = n <= 10000
-    perfil_mid = 10000 < n <= 100000
-    perfil_large = n > 100000
+    perfil_full = n <= MID_THRESHOLD
+    perfil_mid = MID_THRESHOLD < n <= LARGE_THRESHOLD
+    perfil_large = n > LARGE_THRESHOLD
     
     # ===== MÉTRICAS BÁSICAS =====
     metricas['num_vertices'] = G.number_of_nodes()
@@ -132,11 +140,11 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
             # PageRank leve em grafos muito grandes
             try:
                 from networkx.algorithms.link_analysis.pagerank_alg import pagerank_scipy as pr_scipy
-                pagerank = pr_scipy(G, max_iter=30, tol=1e-4)
+                pagerank = pr_scipy(G, max_iter=PAGERANK_ITER_LARGE, tol=1e-4)
             except Exception:
-                pagerank = nx.pagerank(G, max_iter=30, tol=1e-4)
+                pagerank = nx.pagerank(G, max_iter=PAGERANK_ITER_LARGE, tol=1e-4)
         elif perfil_mid:
-            pagerank = nx.pagerank(G, max_iter=50)
+            pagerank = nx.pagerank(G, max_iter=PAGERANK_ITER_MID)
         else:
             pagerank = nx.pagerank(G, max_iter=100)
         metricas['pagerank_medio'] = np.mean(list(pagerank.values()))
@@ -150,12 +158,37 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     
     if not perfil_large:
         try:
-            closeness = nx.closeness_centrality(G)
-            metricas['closeness_medio'] = np.mean(list(closeness.values()))
-            metricas['closeness_max'] = max(closeness.values())
-            metricas['closeness_min'] = min(closeness.values())
-            metricas['closeness_desvio'] = np.std(list(closeness.values()))
-            metricas['closeness_mediana'] = np.median(list(closeness.values()))
+            if perfil_mid and n > 0:
+                # Closeness por amostragem
+                amostra = max(1, int(max(1, int(n * CLOSENESS_SAMPLE_FRAC))))
+                import random as _rnd
+                nodes = list(G.nodes())
+                sample_nodes = _rnd.sample(nodes, min(len(nodes), amostra))
+                vals = []
+                for u in sample_nodes:
+                    dist = nx.single_source_shortest_path_length(G, u)
+                    s = sum(dist.values())
+                    reach = len(dist)
+                    if s > 0.0 and n > 1:
+                        vals.append((reach - 1) / s * ((reach - 1) / (n - 1)))
+                if vals:
+                    metricas['closeness_medio'] = float(np.mean(vals))
+                    metricas['closeness_max'] = float(np.max(vals))
+                    metricas['closeness_min'] = float(np.min(vals))
+                    metricas['closeness_desvio'] = float(np.std(vals))
+                    metricas['closeness_mediana'] = float(np.median(vals))
+                else:
+                    metricas['closeness_medio'] = metricas['closeness_max'] = metricas['closeness_min'] = 0.0
+                    metricas['closeness_desvio'] = metricas['closeness_mediana'] = 0.0
+                metricas['closeness_amostrado'] = True
+            else:
+                closeness = nx.closeness_centrality(G)
+                metricas['closeness_medio'] = np.mean(list(closeness.values()))
+                metricas['closeness_max'] = max(closeness.values())
+                metricas['closeness_min'] = min(closeness.values())
+                metricas['closeness_desvio'] = np.std(list(closeness.values()))
+                metricas['closeness_mediana'] = np.median(list(closeness.values()))
+                metricas['closeness_amostrado'] = False
         except Exception:
             metricas['closeness_medio'] = metricas['closeness_max'] = metricas['closeness_min'] = 0.0
             metricas['closeness_desvio'] = metricas['closeness_mediana'] = 0.0
@@ -165,7 +198,7 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     
     if not perfil_large:
         try:
-            k_bt = min(100, G.number_of_nodes()) if perfil_full else min(50, G.number_of_nodes())
+            k_bt = min(BETWEENNESS_K_FULL, G.number_of_nodes()) if perfil_full else min(BETWEENNESS_K_MID, G.number_of_nodes())
             betweenness = nx.betweenness_centrality(G, k=k_bt)
             metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
             metricas['betweenness_max'] = max(betweenness.values())
