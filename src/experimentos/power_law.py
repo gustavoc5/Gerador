@@ -20,6 +20,7 @@ import os
 import sys
 import random
 import time
+import signal
 import pandas as pd
 import numpy as np
 import networkx as nx
@@ -136,6 +137,11 @@ def calcula_qualidade_powerlaw(graus):
 def calcula_metricas_completas_por_grafo(G, tipo_grafo, graus=None):
     """Calcula todas as métricas possíveis do grafo diretamente do objeto Graph."""
     metricas = {}
+    n = int(G.number_of_nodes())
+    # Perfis por tamanho
+    perfil_full = n <= 10000
+    perfil_mid = 10000 < n <= 100000
+    perfil_large = n > 100000
     
     # ===== MÉTRICAS BÁSICAS =====
     metricas['num_vertices'] = G.number_of_nodes()
@@ -182,63 +188,91 @@ def calcula_metricas_completas_por_grafo(G, tipo_grafo, graus=None):
     
     # ===== MÉTRICAS DE CENTRALIDADE =====
     try:
-        pagerank = nx.pagerank(G, max_iter=100)
+        if perfil_large:
+            try:
+                from networkx.algorithms.link_analysis.pagerank_alg import pagerank_scipy as pr_scipy
+                pagerank = pr_scipy(G, max_iter=30, tol=1e-4)
+            except Exception:
+                pagerank = nx.pagerank(G, max_iter=30, tol=1e-4)
+        elif perfil_mid:
+            pagerank = nx.pagerank(G, max_iter=50)
+        else:
+            pagerank = nx.pagerank(G, max_iter=100)
         metricas['pagerank_medio'] = np.mean(list(pagerank.values()))
         metricas['pagerank_max'] = max(pagerank.values())
         metricas['pagerank_min'] = min(pagerank.values())
         metricas['pagerank_desvio'] = np.std(list(pagerank.values()))
         metricas['pagerank_mediana'] = np.median(list(pagerank.values()))
-    except:
+    except Exception:
         metricas['pagerank_medio'] = metricas['pagerank_max'] = metricas['pagerank_min'] = 0.0
         metricas['pagerank_desvio'] = metricas['pagerank_mediana'] = 0.0
     
-    try:
-        closeness = nx.closeness_centrality(G)
-        metricas['closeness_medio'] = np.mean(list(closeness.values()))
-        metricas['closeness_max'] = max(closeness.values())
-        metricas['closeness_min'] = min(closeness.values())
-        metricas['closeness_desvio'] = np.std(list(closeness.values()))
-        metricas['closeness_mediana'] = np.median(list(closeness.values()))
-    except:
+    if not perfil_large:
+        try:
+            closeness = nx.closeness_centrality(G)
+            metricas['closeness_medio'] = np.mean(list(closeness.values()))
+            metricas['closeness_max'] = max(closeness.values())
+            metricas['closeness_min'] = min(closeness.values())
+            metricas['closeness_desvio'] = np.std(list(closeness.values()))
+            metricas['closeness_mediana'] = np.median(list(closeness.values()))
+        except Exception:
+            metricas['closeness_medio'] = metricas['closeness_max'] = metricas['closeness_min'] = 0.0
+            metricas['closeness_desvio'] = metricas['closeness_mediana'] = 0.0
+    else:
         metricas['closeness_medio'] = metricas['closeness_max'] = metricas['closeness_min'] = 0.0
         metricas['closeness_desvio'] = metricas['closeness_mediana'] = 0.0
     
-    try:
-        betweenness = nx.betweenness_centrality(G, k=min(100, G.number_of_nodes()))
-        metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
-        metricas['betweenness_max'] = max(betweenness.values())
-        metricas['betweenness_min'] = min(betweenness.values())
-        metricas['betweenness_desvio'] = np.std(list(betweenness.values()))
-        metricas['betweenness_mediana'] = np.median(list(betweenness.values()))
-    except:
+    if not perfil_large:
+        try:
+            k_bt = min(100, G.number_of_nodes()) if perfil_full else min(50, G.number_of_nodes())
+            betweenness = nx.betweenness_centrality(G, k=k_bt)
+            metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
+            metricas['betweenness_max'] = max(betweenness.values())
+            metricas['betweenness_min'] = min(betweenness.values())
+            metricas['betweenness_desvio'] = np.std(list(betweenness.values()))
+            metricas['betweenness_mediana'] = np.median(list(betweenness.values()))
+        except Exception:
+            metricas['betweenness_medio'] = metricas['betweenness_max'] = metricas['betweenness_min'] = 0.0
+            metricas['betweenness_desvio'] = metricas['betweenness_mediana'] = 0.0
+    else:
         metricas['betweenness_medio'] = metricas['betweenness_max'] = metricas['betweenness_min'] = 0.0
         metricas['betweenness_desvio'] = metricas['betweenness_mediana'] = 0.0
     
     # ===== MÉTRICAS DE DISTÂNCIA =====
-    try:
-        if G.is_connected() or (G.is_directed() and nx.is_strongly_connected(G)):
-            metricas['diametro'] = nx.diameter(G)
-            metricas['raio'] = nx.radius(G)
-            metricas['distancia_media'] = nx.average_shortest_path_length(G)
-        else:
+    if perfil_full:
+        try:
+            if G.is_connected() or (G.is_directed() and nx.is_strongly_connected(G)):
+                metricas['diametro'] = nx.diameter(G)
+                metricas['raio'] = nx.radius(G)
+                metricas['distancia_media'] = nx.average_shortest_path_length(G)
+            else:
+                metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
+        except Exception:
             metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
-    except:
+    else:
         metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
     
     # ===== MÉTRICAS DE COMUNIDADES =====
-    try:
-        communities_greedy = nx.community.greedy_modularity_communities(G.to_undirected())
-        metricas['num_comunidades_greedy'] = len(communities_greedy)
-        metricas['modularidade_greedy'] = nx.community.modularity(G.to_undirected(), communities_greedy)
-    except:
+    if not perfil_large:
+        try:
+            G_und = G.to_undirected()
+            communities_greedy = nx.community.greedy_modularity_communities(G_und)
+            metricas['num_comunidades_greedy'] = len(communities_greedy)
+            metricas['modularidade_greedy'] = nx.community.modularity(G_und, communities_greedy)
+        except Exception:
+            metricas['num_comunidades_greedy'] = 1
+            metricas['modularidade_greedy'] = 0.0
+        
+        try:
+            communities_label = nx.community.label_propagation_communities(G_und)
+            metricas['num_comunidades_label'] = len(communities_label)
+            metricas['modularidade_label'] = nx.community.modularity(G_und, communities_label)
+        except Exception:
+            metricas['num_comunidades_label'] = 1
+            metricas['modularidade_label'] = 0.0
+    else:
         metricas['num_comunidades_greedy'] = 1
         metricas['modularidade_greedy'] = 0.0
-    
-    try:
-        communities_label = nx.community.label_propagation_communities(G.to_undirected())
-        metricas['num_comunidades_label'] = len(communities_label)
-        metricas['modularidade_label'] = nx.community.modularity(G.to_undirected(), communities_label)
-    except:
         metricas['num_comunidades_label'] = 1
         metricas['modularidade_label'] = 0.0
     
@@ -265,7 +299,7 @@ def calcula_metricas_completas_por_grafo(G, tipo_grafo, graus=None):
     
     return metricas
 
-def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='consolidated_csv', output_dir='./resultados', naming_pattern='metricas_{seed}_tipo{tipo}_v{vertices}_gamma{gamma}_{numero}.csv', num_grafos=50):
+def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='consolidated_csv', output_dir='./resultados', naming_pattern='metricas_{seed}_tipo{tipo}_v{vertices}_gamma{gamma}_{numero}.csv', num_grafos=50, timeout_por_grafo_s: int = 0):
     """Executa teste do gerador power-law com todas as métricas."""
     try:
         
@@ -283,7 +317,19 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='cons
             except Exception:
                 seed_compat = int(abs(hash((seed_effective, tipo, numV))) & 0xFFFFFFFF)
             t0 = time.perf_counter()
-            resultado = geraGrafoPwl(numV, gamma, dirigido, tipo, seed_compat)
+            # Timeout por grafo somente na geração (se suportado)
+            try:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.signal(signal.SIGALRM, lambda s, f: (_ for _ in ()).throw(TimeoutError("Timeout por grafo atingido")))
+                    signal.alarm(int(timeout_por_grafo_s))
+                resultado = geraGrafoPwl(numV, gamma, dirigido, tipo, seed_compat)
+            except TimeoutError:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)
+                continue
+            finally:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)
             
             if resultado is None:
                 continue
@@ -292,8 +338,47 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='cons
             tempo_geracao_s = time.perf_counter() - t0
             tipo_detectado = tipo
             
-            # Calcula métricas completas diretamente do Graph
-            metricas = calcula_metricas_completas_por_grafo(G, tipo_detectado, graus)
+            # Calcula métricas completas diretamente do Graph (com timeout, se configurado)
+            try:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.signal(signal.SIGALRM, lambda s, f: (_ for _ in ()).throw(TimeoutError("Timeout por grafo atingido")))
+                    signal.alarm(int(timeout_por_grafo_s))
+                metricas = calcula_metricas_completas_por_grafo(G, tipo_detectado, graus)
+            except TimeoutError:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)
+                # Salva métricas básicas mesmo com timeout
+                try:
+                    metricas = {}
+                    metricas['num_vertices'] = G.number_of_nodes()
+                    metricas['num_arestas'] = G.number_of_edges()
+                    metricas['tipo_detectado'] = tipo_detectado
+                    if G.number_of_nodes() > 1:
+                        max_arestas = G.number_of_nodes() * (G.number_of_nodes() - 1)
+                        if not G.is_directed():
+                            max_arestas //= 2
+                        metricas['densidade'] = G.number_of_edges() / max_arestas
+                    else:
+                        metricas['densidade'] = 0.0
+                    graus_grafo = [d for n, d in G.degree()]
+                    if graus_grafo:
+                        metricas['grau_medio'] = float(np.mean(graus_grafo))
+                        metricas['grau_max'] = int(max(graus_grafo))
+                        metricas['grau_min'] = int(min(graus_grafo))
+                        metricas['grau_desvio'] = float(np.std(graus_grafo))
+                        metricas['grau_mediana'] = float(np.median(graus_grafo))
+                    else:
+                        metricas['grau_medio'] = metricas['grau_max'] = metricas['grau_min'] = 0
+                        metricas['grau_desvio'] = metricas['grau_mediana'] = 0
+                    metricas['razao_vertices_arestas'] = (
+                        metricas['num_vertices'] / metricas['num_arestas'] if metricas['num_arestas'] > 0 else 0.0
+                    )
+                    metricas['metricas_incompletas'] = True
+                except Exception:
+                    continue
+            finally:
+                if timeout_por_grafo_s and hasattr(signal, 'SIGALRM'):
+                    signal.alarm(0)
             
             # Adiciona parâmetros do teste
             metricas.update({
@@ -403,6 +488,8 @@ def main():
                        choices=['consolidated_csv', 'individual_csv'], 
                        default='consolidated_csv',
                        help='Formato de saída: consolidated_csv (1 arquivo) ou individual_csv (1 arquivo por grafo)')
+    parser.add_argument('--timeout_por_grafo_s', type=int, default=600,
+                       help='Timeout por grafo (segundos). Padrão: 600 (10 minutos). Use 0 para desativar.')
     parser.add_argument('--naming_pattern', 
                        type=str,
                        default='metricas_{seed}_tipo{tipo}_v{vertices}_gamma{gamma}_{numero}.csv',
@@ -474,7 +561,7 @@ def main():
                     print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {categoria_gamma} (gamma={gamma:.3f}) - Seed={seed}")
                     
                     resultado = executa_teste_powerlaw_completo(
-                        tipo, numV, gamma, seed, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_exec
+                        tipo, numV, gamma, seed, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_exec, timeout_por_grafo_s=args.timeout_por_grafo_s
                     )
                     
                     if resultado:
