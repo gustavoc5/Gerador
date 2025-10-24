@@ -505,8 +505,8 @@ def main():
     parser = argparse.ArgumentParser(description='Experimento Simples Completo - Todas as métricas')
     parser.add_argument('--output_dir', default='./resultados_experimentos/exp_simples_completo',
                        help='Diretório de saída')
-    parser.add_argument('--max_vertices', type=int, default=10000,
-                       help='Máximo de vértices para teste (padrão: 10000)')
+    parser.add_argument('--max_vertices', type=int, default=1000000,
+                       help='Máximo de vértices para teste (padrão: 1000000)')
     parser.add_argument('--seeds', nargs='+', type=int, default=[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
                        help='Lista de seeds para teste (aceita seed única ou múltiplas)')
     parser.add_argument('--teste_rapido', action='store_true',
@@ -546,11 +546,15 @@ def main():
         SEEDS = [1000, 2000]
         num_grafos_exec = args.num_grafos
     else:
-        TAMANHOS = [100, 1000, 10000]
-        if args.max_vertices >= 100000:
-            TAMANHOS.append(100000)
+        # Ordem decrescente de tamanhos: prioriza maiores primeiro
+        TAMANHOS = []
         if args.max_vertices >= 1000000:
             TAMANHOS.append(1000000)
+        if args.max_vertices >= 100000:
+            TAMANHOS.append(100000)
+        # Sempre incluir os menores (até o limite permitido)
+        base = [10000, 1000, 100]
+        TAMANHOS.extend([v for v in base if v <= args.max_vertices])
         PREFERENCIAS_DENSIDADE = [0, 1, 2]  # Sem preferência, Esparso, Denso
         NUM_COMPONENTES = [0, 1]  # Aleatório, Conexo
         SEEDS = args.seeds

@@ -112,6 +112,9 @@ def calcula_qualidade_powerlaw(graus):
     """Calcula a qualidade do ajuste power-law."""
     try:
         import powerlaw
+        import io
+        import contextlib
+        import warnings
         
         # Filtra graus > 0
         graus_positivos = [g for g in graus if g > 0]
@@ -119,7 +122,11 @@ def calcula_qualidade_powerlaw(graus):
             return 0.0, 0.0, 0.0, 0.0
         
         # Ajusta distribuição power-law
-        fit = powerlaw.Fit(graus_positivos, discrete=True)
+        _buf = io.StringIO()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", category=RuntimeWarning)
+            with contextlib.redirect_stdout(_buf), contextlib.redirect_stderr(_buf):
+                fit = powerlaw.Fit(graus_positivos, discrete=True, verbose=False)
         
         # Teste de Kolmogorov-Smirnov
         R, p_value = fit.distribution_compare('power_law', 'exponential', normalized_ratio=True)
@@ -484,8 +491,8 @@ def main():
     parser = argparse.ArgumentParser(description='Experimento Power-Law Completo - Todas as métricas')
     parser.add_argument('--output_dir', default='./resultados_experimentos/exp_powerlaw_completo',
                        help='Diretório de saída')
-    parser.add_argument('--max_vertices', type=int, default=10000,
-                       help='Máximo de vértices para teste (padrão: 10000)')
+    parser.add_argument('--max_vertices', type=int, default=1000000,
+                       help='Máximo de vértices para teste (padrão: 1000000)')
     parser.add_argument('--seeds', nargs='+', type=int, default=[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
                        help='Lista de seeds para teste (aceita seed única ou múltiplas)')
     parser.add_argument('--teste_rapido', action='store_true',
@@ -523,11 +530,14 @@ def main():
         SEEDS = [1000, 2000]
         num_grafos_exec = args.num_grafos
     else:
-        TAMANHOS = [100, 1000, 10000]
-        if args.max_vertices >= 100000:
-            TAMANHOS.append(100000)
+        # Ordem decrescente de tamanhos: prioriza maiores primeiro
+        TAMANHOS = []
         if args.max_vertices >= 1000000:
             TAMANHOS.append(1000000)
+        if args.max_vertices >= 100000:
+            TAMANHOS.append(100000)
+        base = [10000, 1000, 100]
+        TAMANHOS.extend([v for v in base if v <= args.max_vertices])
         CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
         SEEDS = args.seeds
         num_grafos_exec = args.num_grafos
