@@ -149,14 +149,14 @@ def gerar_comandos_todos(main_dir, seeds, output_file):
         
         # Comando para experimento Simples (uma linha única, sem quebras)
         comando_simples = (
-            f"mkdir -p {seed_dir_simples} && timeout --signal=SIGKILL 24h "
+            f"mkdir -p {seed_dir_simples} && timeout --signal=SIGKILL 22h "
             f"bash -lc 'export PYTHONIOENCODING=UTF-8; export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
             f"python3 -u {script_simples} --output_dir {seed_dir_simples} --seeds {seed} --max_vertices 1000000 &> {seed_dir_simples}/log.txt'"
         )
         
         # Comando para experimento Power-Law (uma linha única, sem quebras)
         comando_powerlaw = (
-            f"mkdir -p {seed_dir_powerlaw} && timeout --signal=SIGKILL 24h "
+            f"mkdir -p {seed_dir_powerlaw} && timeout --signal=SIGKILL 22h "
             f"bash -lc 'export PYTHONIOENCODING=UTF-8; export OMP_NUM_THREADS=24; export MKL_NUM_THREADS=24; "
             f"python3 -u {script_powerlaw} --output_dir {seed_dir_powerlaw} --seeds {seed} --max_vertices 1000000 &> {seed_dir_powerlaw}/log.txt'"
         )
