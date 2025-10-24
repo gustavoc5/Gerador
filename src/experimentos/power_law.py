@@ -24,6 +24,7 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 from datetime import datetime
+import time
 
 # Adiciona o diretório src ao path
 sys.path.append(os.path.dirname(__file__))
@@ -281,13 +282,14 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='cons
                 seed_compat = int(seed_effective % (2**32 - 1))
             except Exception:
                 seed_compat = int(abs(hash((seed_effective, tipo, numV))) & 0xFFFFFFFF)
-
+            t0 = time.perf_counter()
             resultado = geraGrafoPwl(numV, gamma, dirigido, tipo, seed_compat)
             
             if resultado is None:
                 continue
             
             arestas, G, graus = resultado
+            tempo_geracao_s = time.perf_counter() - t0
             tipo_detectado = tipo
             
             # Calcula métricas completas diretamente do Graph
@@ -300,7 +302,8 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='cons
                 'numV': numV,
                 'gamma': gamma,
                 'seed': seed,
-                'numero': i + 1
+                'numero': i + 1,
+                'tempo_geracao_s': tempo_geracao_s
             })
             
             # Se formato individual, salva arquivo CSV imediatamente
@@ -340,6 +343,13 @@ def executa_teste_powerlaw_completo(tipo, numV, gamma, seed, output_format='cons
                     valores_numericos.append(float(v))
             if valores_numericos:
                 metricas_medias[chave] = float(np.mean(valores_numericos))
+
+        # Agregados adicionais de tempo de geração (se existir a coluna)
+        if 'tempo_geracao_s' in todas_metricas[0]:
+            tempos = [float(m.get('tempo_geracao_s', 0.0)) for m in todas_metricas]
+            if tempos:
+                metricas_medias['tempo_geracao_medio_s'] = float(np.mean(tempos))
+                metricas_medias['tempo_geracao_mediana_s'] = float(np.median(tempos))
         
         # Adiciona métricas básicas
         metricas_medias.update({

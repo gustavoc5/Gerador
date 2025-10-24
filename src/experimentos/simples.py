@@ -193,7 +193,7 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
     try:
         
         # Gera grafos com os mesmos parâmetros (configurável por --num_grafos)
-        datasets = geraDataset(tipo, numV, numA, seed, n=num_grafos, numC=numC, fator=0)
+        datasets = geraDataset(tipo, numV, numA, seed, n=num_grafos, numC=numC, fator=0, medir_tempo=True)
         
         if not datasets or len(datasets) == 0:
             return None
@@ -202,7 +202,12 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
         todas_metricas = []
         grafos_networkx = []  # Lista para análise de equivalência estrutural
         
-        for i, arestas in enumerate(datasets):
+        for i, item in enumerate(datasets):
+            if isinstance(item, tuple):
+                arestas, tempo_geracao_s = item
+            else:
+                arestas = item
+                tempo_geracao_s = None
             tipo_detectado = tipo  # evitamos reconstrução por matriz
             metricas_grafo = calcula_metricas_completas_por_arestas(arestas, numV, tipo_detectado)
             
@@ -216,7 +221,8 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
                 'estrategia_arestas': estrategia_arestas,
                 'preferencia_densidade': preferencia_densidade,
                 'numC': numC,
-                'numero': i + 1
+                'numero': i + 1,
+                'tempo_geracao_s': tempo_geracao_s if tempo_geracao_s is not None else 0.0
             })
             
             # Se formato individual, salva arquivo CSV imediatamente
@@ -262,6 +268,13 @@ def executa_teste_simples_completo(tipo, numV, numA, seed, estrategia_arestas, p
                     valores_numericos.append(float(v))
             if valores_numericos:
                 metricas_medias[chave] = float(np.mean(valores_numericos))
+
+        # Agregados adicionais de tempo de geração (se existir a coluna)
+        if 'tempo_geracao_s' in todas_metricas[0]:
+            tempos = [float(m.get('tempo_geracao_s', 0.0)) for m in todas_metricas]
+            if tempos:
+                metricas_medias['tempo_geracao_medio_s'] = float(np.mean(tempos))
+                metricas_medias['tempo_geracao_mediana_s'] = float(np.median(tempos))
         
 
         

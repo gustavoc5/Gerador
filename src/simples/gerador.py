@@ -3,6 +3,7 @@
 import random
 import math
 import numpy as np
+import time
 from constants import (
     TIPOS_DIRIGIDOS, TIPOS_MULTIGRAFOS, TIPOS_PSEUDOGRAFOS,
     MAX_TENTATIVAS
@@ -498,7 +499,7 @@ def geraPseudografo(numV, numA, dirigido=False):
     return arestas
 
 
-def geraDataset(tipo, numV, numA, seed, n, numC, fator):
+def geraDataset(tipo, numV, numA, seed, n, numC, fator, medir_tempo=False):
     """Função principal para gerar datasets de grafos."""
     random.seed(seed)
     datasets = []
@@ -508,9 +509,14 @@ def geraDataset(tipo, numV, numA, seed, n, numC, fator):
         tentativas = 0
         while len(datasets) != n and tentativas < MAX_TENTATIVAS:
             tentativas += 1
+            t0 = time.perf_counter()
             grafo = geraComponente(tipo, numV, numA, numC, fator)
             if grafo is not None:
-                datasets.append(sorted(list(grafo)))
+                tempo_s = time.perf_counter() - t0
+                if medir_tempo:
+                    datasets.append((sorted(list(grafo)), tempo_s))
+                else:
+                    datasets.append(sorted(list(grafo)))
                 tentativas = 0
             else:
                 continue
@@ -523,20 +529,30 @@ def geraDataset(tipo, numV, numA, seed, n, numC, fator):
         # Geração de grafo conexo
         for _ in range(n):
             if tipo == 0:
+                t0 = time.perf_counter()
                 arestas = geraGrafoSimples(numV, numA)
             elif tipo == 1:
+                t0 = time.perf_counter()
                 arestas = geraGrafoDirigido(numV, numA)
             elif tipo == 20:
+                t0 = time.perf_counter()
                 arestas = geraMultigrafo(numV, numA, dirigido=False)
             elif tipo == 21:
+                t0 = time.perf_counter()
                 arestas = geraMultigrafo(numV, numA, dirigido=True)
             elif tipo == 30:
+                t0 = time.perf_counter()
                 arestas = geraPseudografo(numV, numA, dirigido=False)
             elif tipo == 31:
+                t0 = time.perf_counter()
                 arestas = geraPseudografo(numV, numA, dirigido=True)
             else:
                 raise ParametrosInvalidosError(f"Tipo de grafo inválido: {tipo}")
             
-            datasets.append(sorted(list(arestas)))
+            tempo_s = time.perf_counter() - t0
+            if medir_tempo:
+                datasets.append((sorted(list(arestas)), tempo_s))
+            else:
+                datasets.append(sorted(list(arestas)))
     
     return datasets
