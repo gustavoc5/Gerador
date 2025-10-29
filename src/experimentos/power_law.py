@@ -491,8 +491,8 @@ def main():
     parser = argparse.ArgumentParser(description='Experimento Power-Law Completo - Todas as métricas')
     parser.add_argument('--output_dir', default='./resultados_experimentos/exp_powerlaw_completo',
                        help='Diretório de saída')
-    parser.add_argument('--max_vertices', type=int, default=1000000,
-                       help='Máximo de vértices para teste (padrão: 1000000)')
+    parser.add_argument('--max_vertices', type=int, default=100000,
+                       help='Máximo de vértices para teste (padrão: 100000)')
     parser.add_argument('--seeds', nargs='+', type=int, default=[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
                        help='Lista de seeds para teste (aceita seed única ou múltiplas)')
     parser.add_argument('--teste_rapido', action='store_true',
@@ -530,14 +530,8 @@ def main():
         SEEDS = [1000, 2000]
         num_grafos_exec = args.num_grafos
     else:
-        # Ordem decrescente de tamanhos: prioriza maiores primeiro
-        TAMANHOS = []
-        if args.max_vertices >= 1000000:
-            TAMANHOS.append(1000000)
-        if args.max_vertices >= 100000:
-            TAMANHOS.append(100000)
-        base = [10000, 1000, 100]
-        TAMANHOS.extend([v for v in base if v <= args.max_vertices])
+        # Apenas 100k para teste
+        TAMANHOS = [100000]
         CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
         SEEDS = args.seeds
         num_grafos_exec = args.num_grafos
@@ -576,15 +570,8 @@ def main():
                     
                     print(f"[{teste_atual:6d}/{total_combinacoes}] Tipo {tipo} - V={numV} - {categoria_gamma} (gamma={gamma:.3f}) - Seed={seed}")
                     
-                    # Réplicas por tamanho
-                    if numV >= 1000000:
-                        num_grafos_combo = 10
-                    elif numV >= 100000:
-                        num_grafos_combo = 20
-                    elif numV >= 10000:
-                        num_grafos_combo = 30
-                    else:
-                        num_grafos_combo = 50
+                    # 2 grafos por combinação
+                    num_grafos_combo = 2
 
                     resultado = executa_teste_powerlaw_completo(
                         tipo, numV, gamma, seed, args.output_format, args.output_dir, args.naming_pattern, num_grafos=num_grafos_combo, timeout_por_grafo_s=args.timeout_por_grafo_s
