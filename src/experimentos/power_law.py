@@ -491,8 +491,8 @@ def main():
     parser = argparse.ArgumentParser(description='Experimento Power-Law Completo - Todas as métricas')
     parser.add_argument('--output_dir', default='./resultados_experimentos/exp_powerlaw_completo',
                        help='Diretório de saída')
-    parser.add_argument('--max_vertices', type=int, default=100000,
-                       help='Máximo de vértices para teste (padrão: 100000)')
+    parser.add_argument('--max_vertices', type=int, default=1000000,
+                       help='Máximo de vértices para teste (padrão: 1000000)')
     parser.add_argument('--seeds', nargs='+', type=int, default=[1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000],
                        help='Lista de seeds para teste (aceita seed única ou múltiplas)')
     parser.add_argument('--teste_rapido', action='store_true',
@@ -530,8 +530,8 @@ def main():
         SEEDS = [1000, 2000]
         num_grafos_exec = args.num_grafos
     else:
-        # Apenas 100k para teste
-        TAMANHOS = [100000]
+        # Apenas 1M para teste
+        TAMANHOS = [1000000]
         CATEGORIAS_GAMMA = ['denso', 'moderado', 'esparso']
         SEEDS = args.seeds
         num_grafos_exec = args.num_grafos
