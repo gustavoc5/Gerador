@@ -516,7 +516,7 @@ def geraDataset(tipo, numV, numA, seed, n, numC, fator, medir_tempo=False):
                 if medir_tempo:
                     datasets.append((sorted(list(grafo)), tempo_s))
                 else:
-                    datasets.append(sorted(list(grafo)))
+                datasets.append(sorted(list(grafo)))
                 tentativas = 0
             else:
                 continue
@@ -553,6 +553,6 @@ def geraDataset(tipo, numV, numA, seed, n, numC, fator, medir_tempo=False):
             if medir_tempo:
                 datasets.append((sorted(list(arestas)), tempo_s))
             else:
-                datasets.append(sorted(list(arestas)))
+            datasets.append(sorted(list(arestas)))
     
     return datasets
