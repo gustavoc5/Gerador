@@ -245,7 +245,9 @@ def constroiComponentes(verticesComp, arestasComp, tipo, numV):
                 loops_adicionados += 1
             arestas_necessarias -= loops_adicionados
         
-        while arestas_adicionadas < arestas_necessarias and tentativas_aresta < 1000:
+        # Limite proporcional ao número de arestas necessárias
+        limite_tentativas = MAX_TENTATIVAS * max(1, arestas_necessarias)
+        while arestas_adicionadas < arestas_necessarias and tentativas_aresta < limite_tentativas:
             u = random.choice(vertices)
             v = random.choice(vertices)
             tentativas_aresta += 1
@@ -383,6 +385,10 @@ def geraComponente(tipo, numV, numA, numC, fator):
         # Passo 5: Constrói as componentes usando stub matching
         try:
             arestas = constroiComponentes(verticesComp, arestasComp, tipo, numV)
+            # Validação: verifica se número de arestas geradas corresponde ao solicitado
+            if len(arestas) != numA:
+                tentativas += 1
+                continue
             return arestas
         except Exception:  # Falha na construção
             tentativas += 1
@@ -504,7 +510,7 @@ def geraDataset(tipo, numV, numA, seed, n, numC, fator, medir_tempo=False):
     random.seed(seed)
     datasets = []
     
-    if numC > 0:
+    if numC > 1:
         # Geração com múltiplas componentes
         tentativas = 0
         while len(datasets) != n and tentativas < MAX_TENTATIVAS:
@@ -516,7 +522,7 @@ def geraDataset(tipo, numV, numA, seed, n, numC, fator, medir_tempo=False):
                 if medir_tempo:
                     datasets.append((sorted(list(grafo)), tempo_s))
                 else:
-                datasets.append(sorted(list(grafo)))
+                    datasets.append(sorted(list(grafo)))
                 tentativas = 0
             else:
                 continue
@@ -553,6 +559,6 @@ def geraDataset(tipo, numV, numA, seed, n, numC, fator, medir_tempo=False):
             if medir_tempo:
                 datasets.append((sorted(list(arestas)), tempo_s))
             else:
-            datasets.append(sorted(list(arestas)))
+                datasets.append(sorted(list(arestas)))
     
     return datasets
