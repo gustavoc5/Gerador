@@ -125,14 +125,23 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     # ===== MÉTRICAS DE CONECTIVIDADE =====
     try:
         if G.is_directed():
-            metricas['num_componentes'] = nx.number_strongly_connected_components(G)
-            metricas['conectividade'] = 1.0 if nx.is_strongly_connected(G) else 0.0
+            # Para grafos dirigidos, usar componentes FRACAS (mais apropriado para numC)
+            # Componentes fracas são mais comuns na prática e fazem mais sentido
+            # quando o usuário especifica numC (número de componentes conexas)
+            metricas['num_componentes'] = nx.number_weakly_connected_components(G)
+            metricas['conectividade'] = 1.0 if nx.is_weakly_connected(G) else 0.0
+            # Manter componentes fortes como referência adicional
+            metricas['num_componentes_fortes'] = nx.number_strongly_connected_components(G)
+            metricas['conectividade_forte'] = 1.0 if nx.is_strongly_connected(G) else 0.0
         else:
             metricas['num_componentes'] = nx.number_connected_components(G)
             metricas['conectividade'] = 1.0 if nx.is_connected(G) else 0.0
     except:
         metricas['num_componentes'] = 1
         metricas['conectividade'] = 0.0
+        if G.is_directed():
+            metricas['num_componentes_fortes'] = 1
+            metricas['conectividade_forte'] = 0.0
     
     # ===== MÉTRICAS DE CENTRALIDADE =====
     try:
@@ -146,7 +155,7 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
         elif perfil_mid:
             pagerank = nx.pagerank(G, max_iter=PAGERANK_ITER_MID)
         else:
-        pagerank = nx.pagerank(G, max_iter=100)
+            pagerank = nx.pagerank(G, max_iter=100)
         metricas['pagerank_medio'] = np.mean(list(pagerank.values()))
         metricas['pagerank_max'] = max(pagerank.values())
         metricas['pagerank_min'] = min(pagerank.values())
@@ -157,7 +166,7 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
         metricas['pagerank_desvio'] = metricas['pagerank_mediana'] = 0.0
     
     if not perfil_large:
-    try:
+        try:
             if perfil_mid and n > 0:
                 # Closeness por amostragem
                 amostra = max(1, int(max(1, int(n * CLOSENESS_SAMPLE_FRAC))))
@@ -183,12 +192,12 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
                     metricas['closeness_desvio'] = metricas['closeness_mediana'] = 0.0
                 metricas['closeness_amostrado'] = True
             else:
-        closeness = nx.closeness_centrality(G)
-        metricas['closeness_medio'] = np.mean(list(closeness.values()))
-        metricas['closeness_max'] = max(closeness.values())
-        metricas['closeness_min'] = min(closeness.values())
-        metricas['closeness_desvio'] = np.std(list(closeness.values()))
-        metricas['closeness_mediana'] = np.median(list(closeness.values()))
+                closeness = nx.closeness_centrality(G)
+                metricas['closeness_medio'] = np.mean(list(closeness.values()))
+                metricas['closeness_max'] = max(closeness.values())
+                metricas['closeness_min'] = min(closeness.values())
+                metricas['closeness_desvio'] = np.std(list(closeness.values()))
+                metricas['closeness_mediana'] = np.median(list(closeness.values()))
                 metricas['closeness_amostrado'] = False
         except Exception:
             metricas['closeness_medio'] = metricas['closeness_max'] = metricas['closeness_min'] = 0.0
@@ -200,15 +209,15 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     if not perfil_large:
         try:
             k_bt = min(BETWEENNESS_K_FULL, G.number_of_nodes()) if perfil_full else min(BETWEENNESS_K_MID, G.number_of_nodes())
-    try:
+            try:
                 betweenness = nx.betweenness_centrality(G, k=k_bt, seed=seed_metrics)
             except TypeError:
                 betweenness = nx.betweenness_centrality(G, k=k_bt)
-        metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
-        metricas['betweenness_max'] = max(betweenness.values())
-        metricas['betweenness_min'] = min(betweenness.values())
-        metricas['betweenness_desvio'] = np.std(list(betweenness.values()))
-        metricas['betweenness_mediana'] = np.median(list(betweenness.values()))
+            metricas['betweenness_medio'] = np.mean(list(betweenness.values()))
+            metricas['betweenness_max'] = max(betweenness.values())
+            metricas['betweenness_min'] = min(betweenness.values())
+            metricas['betweenness_desvio'] = np.std(list(betweenness.values()))
+            metricas['betweenness_mediana'] = np.median(list(betweenness.values()))
         except Exception:
             metricas['betweenness_medio'] = metricas['betweenness_max'] = metricas['betweenness_min'] = 0.0
             metricas['betweenness_desvio'] = metricas['betweenness_mediana'] = 0.0
@@ -218,12 +227,14 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     
     # ===== MÉTRICAS DE DISTÂNCIA =====
     if perfil_full:
-    try:
-        if G.is_connected() or (G.is_directed() and nx.is_strongly_connected(G)):
-            metricas['diametro'] = nx.diameter(G)
-            metricas['raio'] = nx.radius(G)
-            metricas['distancia_media'] = nx.average_shortest_path_length(G)
-        else:
+        try:
+            if G.is_connected() or (G.is_directed() and nx.is_strongly_connected(G)):
+                metricas['diametro'] = nx.diameter(G)
+                metricas['raio'] = nx.radius(G)
+                metricas['distancia_media'] = nx.average_shortest_path_length(G)
+            else:
+                metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
+        except Exception:
             metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
         except Exception:
             metricas['diametro'] = metricas['raio'] = metricas['distancia_media'] = float('inf')
@@ -232,22 +243,23 @@ def calcula_metricas_completas_por_arestas(arestas, num_vertices_total, tipo_gra
     
     # ===== MÉTRICAS DE COMUNIDADES =====
     if not perfil_large:
-    try:
+        try:
             G_und = G.to_undirected()
             communities_greedy = nx.community.greedy_modularity_communities(G_und)
-        metricas['num_comunidades_greedy'] = len(communities_greedy)
+            metricas['num_comunidades_greedy'] = len(communities_greedy)
             metricas['modularidade_greedy'] = nx.community.modularity(G_und, communities_greedy)
         except Exception:
-        metricas['num_comunidades_greedy'] = 1
-        metricas['modularidade_greedy'] = 0.0
+            metricas['num_comunidades_greedy'] = 1
+            metricas['modularidade_greedy'] = 0.0
     
-    try:
+    if not perfil_large:
+        try:
             # Preferir versão assíncrona com seed
             try:
                 communities_label = list(nx.community.asyn_lpa_communities(G_und, seed=seed_metrics))
             except Exception:
                 communities_label = list(nx.community.label_propagation_communities(G_und))
-        metricas['num_comunidades_label'] = len(communities_label)
+            metricas['num_comunidades_label'] = len(communities_label)
             metricas['modularidade_label'] = nx.community.modularity(G_und, communities_label)
         except Exception:
             metricas['num_comunidades_label'] = 1
